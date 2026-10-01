@@ -71,7 +71,12 @@ export interface Ghost {
   /** That last segment as it will be redrawn after the nudge. */
   prev: { type: ProcessType; a: GasState; b: GasState } | null
   why: string
+  /** The pointer is well off the isotherm or adiabat, so the nearest point on it was taken. */
+  far: boolean
 }
+
+/** Pointer distance (viewBox px) from a curve tool's line beyond which the graph says so. */
+export const FAR_PX = 36
 
 /** How far (viewBox px) the last state may be nudged so a closing segment snaps onto A. */
 export const SNAP_ADJUST_PX = 40
@@ -100,6 +105,7 @@ export function computeGhost(opts: {
   let a = opts.a
   let end: number
   let bPV: { P: number; V: number }
+  let far = false
   if (t === 'isochoric') {
     end = snapP(P, snapOff)
     bPV = { V: a.V, P: end }
@@ -119,6 +125,7 @@ export function computeGhost(opts: {
     }
     end = snapV(bestV, snapOff)
     bPV = { V: end, P: curveP(gas, t, a.P, a.V, end) }
+    far = bestD > FAR_PX
   }
   let closing = false
   let adjust: number | null = null
@@ -164,5 +171,5 @@ export function computeGhost(opts: {
     valid = false
     why = '변화가 너무 작아요'
   }
-  return { type: t, end, a, b, valid, closing, adjust, prev, why }
+  return { type: t, end, a, b, valid, closing, adjust, prev, why, far: far && !closing }
 }

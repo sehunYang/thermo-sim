@@ -112,6 +112,7 @@ export class EngineUnavailable extends Error {}
 export class Engine {
   readonly speeds = new Float32Array(NP)
   vrms = vrmsAt(300)
+  private lastT = 300
 
   private renderer: THREE.WebGLRenderer
   private scene = new THREE.Scene()
@@ -478,17 +479,23 @@ export class Engine {
     this.inst.frustumCulled = false
     for (let i = 0; i < NP; i++) this.inst.setColorAt(i, this.tmpC.set(0xffffff))
     scene.add(this.inst)
-    const { pos, vel } = this
+    const { pos } = this
     for (let i = 0; i < NP; i++) {
       const a = Math.random() * Math.PI * 2
       const r = Math.sqrt(Math.random()) * 0.9
       pos[i * 3] = Math.cos(a) * r
       pos[i * 3 + 1] = 0.05 + Math.random() * 1.2
       pos[i * 3 + 2] = Math.sin(a) * r
-      vel[i * 3] = gauss()
-      vel[i * 3 + 1] = gauss()
-      vel[i * 3 + 2] = gauss()
     }
+    this.resample(300)
+  }
+
+  /** Redraw every velocity from the Maxwell distribution at T (after a jump in temperature). */
+  private resample(T: number) {
+    const a = vrmsAt(T) / Math.sqrt(3)
+    const { vel } = this
+    for (let k = 0; k < NP * 3; k++) vel[k] = a * gauss()
+    this.lastT = T
   }
 
   /**
@@ -774,6 +781,11 @@ export class Engine {
     type: View['type'],
     heatOn: boolean,
   ) {
+    // A seek, a new preset, a gas change or a shared link moves T in one step. Rescaling would
+    // leave a two-humped histogram for seconds, so start again from Maxwell's distribution.
+    // Playback changes T by far less than this per frame.
+    if (Math.abs(T - this.lastT) > 0.15 * this.lastT) this.resample(T)
+    this.lastT = T
     const vrms = vrmsAt(T)
     this.vrms = vrms
     const H = this.hCur

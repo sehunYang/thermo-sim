@@ -4,6 +4,7 @@
   import { sim } from './store/simulation.svelte'
   import AppBar from './ui/AppBar.svelte'
   import Coach from './ui/Coach.svelte'
+  import Help from './ui/Help.svelte'
   import EngineView from './ui/EngineView.svelte'
   import Panel from './ui/Panel.svelte'
   import Playbar from './ui/Playbar.svelte'
@@ -59,7 +60,7 @@
 
   function onKey(e: KeyboardEvent) {
     const target = e.target as HTMLElement
-    if (target.matches('input,select,textarea') || sim.coach) return
+    if (target.matches('input,select,textarea') || sim.coach || sim.help) return
     const mod = e.ctrlKey || e.metaKey
     if (!mod && keyTools[e.key]) sim.tool = keyTools[e.key]
     // A focused button already reacts to Space itself.
@@ -96,4 +97,5 @@
   <Panel />
   <Toast />
   <Coach />
+  <Help />
 </div>

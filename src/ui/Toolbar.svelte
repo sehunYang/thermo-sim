@@ -5,17 +5,30 @@
 
   function complete() {
     const n = sim.segments.length
+    const last = sim.resolved.at(-1)
     const c = sim.autoComplete()
-    if (!c) {
+    if (!c || !last) {
       sim.notify('지금 상태에서는 A로 돌아갈 과정을 찾지 못했어요')
       return
     }
+    // Say exactly what changed: a nudge is "살짝", anything larger is named, with the way back.
     const names = c.add.map((s) => PROC[s.type].full).join(' → ')
-    sim.notify(
-      c.adjust != null
-        ? `${names}으로 A에 닫았어요 · ${LETTERS[n]}를 살짝 옮겼어요`
-        : `${names}으로 A에 닫았어요`,
-    )
+    const seg = `${LETTERS[n - 1]}→${LETTERS[n]}`
+    const iso = last.segment.type === 'isochoric'
+    const was = (up: boolean) => (iso ? (up ? '가열' : '냉각') : up ? '팽창' : '압축')
+    const up = last.segment.end > (iso ? last.a.P : last.a.V)
+    const L = LETTERS[n]
+    const to = (w: string) => (w === '가열' ? '가열로' : `${w}으로`)
+    let msg =
+      c.change === 'flip'
+        ? `${seg}를 ${was(up)}에서 ${to(was(!up))} 바꾸고 ${names}으로 A에 닫았어요`
+        : c.change === 'big'
+          ? `${seg}의 끝 ${L}를 크게 옮기고 ${names}으로 A에 닫았어요`
+          : `${names}으로 A에 닫았어요`
+    if (c.change === 'small') msg += ` · ${L}를 살짝 옮겼어요`
+    if (c.overlap) msg += ' · 앞의 선과 겹쳐요'
+    if (c.change === 'flip' || c.change === 'big') msg += ' · 되돌리기로 돌아갈 수 있어요'
+    sim.notify(msg)
   }
 </script>
 
@@ -26,7 +39,7 @@
       class="tool"
       aria-pressed={sim.tool === t}
       style="--tc:var({pr.cssVar})"
-      title="{pr.full} ({pr.law})"
+      title="{pr.full}: {pr.plain} ({pr.law})"
       onclick={() => (sim.tool = t)}
     >
       <Swatch type={t} />{pr.name}<kbd>{pr.key}</kbd>

@@ -16,7 +16,17 @@ export interface Closure {
   add: NewSegment[]
   /** How far the closure moves or travels, in the metric it was chosen with. */
   cost: number
+  /** What the adjust does to the drawn segment: see changeOf. */
+  change: Change
+  /** A new segment runs back along a line already drawn. */
+  overlap: boolean
 }
+
+/**
+ * none: kept as drawn; small: nudged; flip: now runs the other way (expansion became compression,
+ * heating became cooling); big: same way but its change grew or shrank by more than 20%.
+ */
+export type Change = 'none' | 'small' | 'flip' | 'big'
 
 export type Metric = (a: { P: number; V: number }, b: { P: number; V: number }) => number
 
@@ -87,17 +97,67 @@ export function meetCurve(
   return roots
 }
 
-function acceptable(path: ProcessPath, adjust: number | null, add: NewSegment[]): boolean {
+function trialPath(path: ProcessPath, adjust: number | null, add: NewSegment[]): ProcessPath {
   const segments = path.segments.map((s, i) =>
     adjust != null && i === path.segments.length - 1 ? { ...s, end: adjust } : s,
   )
-  const trial: ProcessPath = {
+  return {
     ...path,
     segments: [...segments, ...add.map((s, i) => ({ id: `c${i}`, ...s }))],
     closed: true,
   }
+}
+
+function acceptable(path: ProcessPath, adjust: number | null, add: NewSegment[]): boolean {
+  const trial = trialPath(path, adjust, add)
   if (!isValidPath(trial)) return false
   return resolve(trial).every((r) => !tooSmall(r.a, r.b))
+}
+
+/** How an adjust changes the last drawn segment (its free value moves from end to adjust). */
+export function changeOf(path: ProcessPath, adjust: number | null): Change {
+  if (adjust == null || !path.segments.length) return 'none'
+  const segs = resolve(path)
+  const last = segs[segs.length - 1]
+  const from = freeValue(last.segment.type, last.a)
+  const d0 = last.segment.end - from
+  const d1 = adjust - from
+  if (Math.sign(d0) !== Math.sign(d1)) return 'flip'
+  return Math.abs(d1 - d0) > 0.2 * Math.abs(d0) ? 'big' : 'small'
+}
+
+/** Two segments of the same kind on the same curve whose ranges overlap. */
+export function hasOverlap(path: ProcessPath): boolean {
+  const segs = resolve(path)
+  for (let i = 0; i < segs.length; i++) {
+    for (let j = i + 1; j < segs.length; j++) {
+      const s = segs[i]
+      const t = segs[j]
+      const type = s.segment.type
+      if (t.segment.type !== type) continue
+      if (Math.abs(invariant(path.gas, type, s.a) - invariant(path.gas, type, t.a)) > 1e-4) continue
+      const lo = (r: typeof s) => Math.min(freeValue(type, r.a), freeValue(type, r.b))
+      const hi = (r: typeof s) => Math.max(freeValue(type, r.a), freeValue(type, r.b))
+      const shared = Math.min(hi(s), hi(t)) - Math.max(lo(s), lo(t))
+      if (shared > (type === 'isochoric' ? 2.5 : 0.25)) return true
+    }
+  }
+  return false
+}
+
+function candidate(
+  path: ProcessPath,
+  adjust: number | null,
+  add: NewSegment[],
+  cost: number,
+): Closure {
+  return {
+    adjust,
+    add,
+    cost,
+    change: changeOf(path, adjust),
+    overlap: hasOverlap(trialPath(path, adjust, add)),
+  }
 }
 
 /**
@@ -109,35 +169,36 @@ export function closeWith(
   type: ProcessType,
   metric: Metric = graphMetric,
 ): Closure | null {
-  if (path.closed || !path.segments.length) return null
+  let best: Closure | null = null
+  for (const c of oneSegment(path, type, metric)) if (!best || c.cost < best.cost) best = c
+  return best
+}
+
+function oneSegment(path: ProcessPath, type: ProcessType, metric: Metric): Closure[] {
+  if (path.closed || !path.segments.length) return []
   const segs = resolve(path)
   const last = segs[segs.length - 1]
   const A = path.start
-  let best: Closure | null = null
+  const out: Closure[] = []
   for (const e of meetCurve(path.gas, last.segment.type, last.a, type, A)) {
     const X = endState(path.gas, last.segment.type, last.a, e)
     const add = [{ type, end: freeValue(type, A) }]
     if (!acceptable(path, e, add)) continue
-    const cost = metric(X, last.b)
-    if (!best || cost < best.cost) best = { adjust: e, add, cost }
+    out.push(candidate(path, e, add, metric(X, last.b)))
   }
-  return best
+  return out
 }
 
 /**
- * The best way back to A. First the one closing process that needs the smallest move of the
- * last state; failing that (for example after a single segment, whose curve already runs through
- * A), two new segments from the last state with the shortest detour.
+ * The best way back to A, preferring closures that leave the drawing as it is. In order: one
+ * closing process that only nudges the last state; two new segments from the last state; one
+ * closing process that changes the last segment a lot. Closures that run back along a line
+ * already drawn come last of all. Within a tier, the smallest move or detour wins.
  */
 export function autoClose(path: ProcessPath, metric: Metric = graphMetric): Closure | null {
   if (path.closed || !path.segments.length) return null
   const types: ProcessType[] = ['isochoric', 'isobaric', 'isothermal', 'adiabatic']
-  let best: Closure | null = null
-  for (const t of types) {
-    const c = closeWith(path, t, metric)
-    if (c && (!best || c.cost < best.cost)) best = c
-  }
-  if (best) return best
+  const all: Closure[] = types.flatMap((t) => oneSegment(path, t, metric))
 
   const segs = resolve(path)
   const last = segs[segs.length - 1]
@@ -153,10 +214,15 @@ export function autoClose(path: ProcessPath, metric: Metric = graphMetric): Clos
           { type: t2, end: freeValue(t2, A) },
         ]
         if (!acceptable(path, null, add)) continue
-        const cost = metric(X, M) + metric(M, A)
-        if (!best || cost < best.cost) best = { adjust: null, add, cost }
+        all.push(candidate(path, null, add, metric(X, M) + metric(M, A)))
       }
     }
+  }
+  const tier = (c: Closure) =>
+    (c.overlap ? 3 : 0) + (c.change === 'flip' || c.change === 'big' ? 2 : c.add.length > 1 ? 1 : 0)
+  let best: Closure | null = null
+  for (const c of all) {
+    if (!best || tier(c) < tier(best) || (tier(c) === tier(best) && c.cost < best.cost)) best = c
   }
   return best
 }

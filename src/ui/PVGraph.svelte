@@ -99,7 +99,12 @@
       return ghost.adjust != null
         ? '놓으면 앞 상태를 살짝 맞춰 A에 닫아요'
         : '놓으면 A로 돌아와 순환이 닫혀요'
-    return `${PROC[sim.tool].name} 도구 · 끌거나 눌러서 다음 상태를 정하세요`
+    if (ghost?.far)
+      return sim.tool === 'isothermal'
+        ? '등온선은 오른쪽으로 갈수록 내려가요(PV 일정) · 선 위의 가장 가까운 점에 찍어요'
+        : '단열선은 등온선보다 가파르게 내려가요 · 선 위의 가장 가까운 점에 찍어요'
+    const t = PROC[sim.tool]
+    return `${t.name}: ${t.plain} · 끌거나 눌러서 다음 상태를 정하세요`
   })
 
   function openPresets() {
@@ -177,20 +182,19 @@
     ghost = ghostAt(p.x, p.y, e.shiftKey)
   }
 
-  function onUp(e: PointerEvent) {
-    dragging = false
-    const p = svgPoint(e)
-    const outside = p.x < G.L || p.x > G.L + PW || p.y < G.T || p.y > G.T + PH
+  /** Place a point at plot coordinates (px, py): the start A, or the next segment's end. */
+  function commit(px: number, py: number, snapOff: boolean) {
+    const outside = px < G.L || px > G.L + PW || py < G.T || py > G.T + PH
     if (!sim.start) {
       if (outside) return
-      const V = snapV(Vx(p.x), e.shiftKey)
-      const P = snapP(Py(p.y), e.shiftKey)
+      const V = snapV(Vx(px), snapOff)
+      const P = snapP(Py(py), snapOff)
       if (sim.setStart(P, V)) sim.notify('시작 상태 A를 정했어요')
       else sim.notify(`시작 상태는 ${LIMITS.Tmin}~${LIMITS.Tmax} K 안에서 정해 주세요`)
       return
     }
     if (sim.closed) return
-    const gh = ghostAt(p.x, p.y, e.shiftKey)
+    const gh = ghostAt(px, py, snapOff)
     if (!gh) return
     if (!gh.valid) {
       sim.notify(gh.why || '이 위치로는 그릴 수 없어요')
@@ -204,20 +208,90 @@
           : '순환이 닫혔어요',
       )
     ghost = null
+  }
+
+  function onUp(e: PointerEvent) {
+    dragging = false
+    const p = svgPoint(e)
+    commit(p.x, p.y, e.shiftKey)
     if (e.pointerType !== 'mouse') {
       hover = null
       readout = null
     }
   }
+
+  // Keyboard drawing: arrows move a cursor (Shift for big steps), Enter places the point.
+  let kb = $state<{ V: number; P: number } | null>(null)
+  const say = (V: number, P: number) =>
+    `V ${f1(V)} L · P ${f0(P)} kPa · T ${f0(temperature(sim.gas, P, V))} K`
+
+  function showCursor(V: number, P: number) {
+    kb = { V, P }
+    hover = { V, P }
+    const ctm = svg.getScreenCTM()
+    const r = host.getBoundingClientRect()
+    if (ctm) {
+      const x = xV(V) * ctm.a + ctm.e - r.left
+      const y = yP(P) * ctm.d + ctm.f - r.top
+      readout = { x, y, flip: x > r.width - 200, text: say(V, P) }
+    }
+    ghost = ghostAt(xV(V), yP(P), false)
+  }
+
+  function onFocus() {
+    if (!svg.matches(':focus-visible')) return
+    const a = sim.lastState
+    showCursor(a ? a.V : 20, a ? a.P : 200)
+  }
+
+  function onBlur() {
+    kb = null
+    hover = null
+    readout = null
+    ghost = null
+  }
+
+  function onKey(e: KeyboardEvent) {
+    const big = e.shiftKey
+    const d: Record<string, [number, number]> = {
+      ArrowRight: [big ? 5 : 0.5, 0],
+      ArrowLeft: [big ? -5 : -0.5, 0],
+      ArrowUp: [0, big ? 50 : 5],
+      ArrowDown: [0, big ? -50 : -5],
+    }
+    if (d[e.key]) {
+      e.preventDefault()
+      e.stopPropagation()
+      if (sim.play.active && !sim.closed) sim.stopPlay()
+      const c = kb ?? { V: sim.lastState?.V ?? 20, P: sim.lastState?.P ?? 200 }
+      const V = Math.max(0.5, Math.min(VMAX, snapV(c.V + d[e.key][0])))
+      const P = Math.max(5, Math.min(PMAX, snapP(c.P + d[e.key][1])))
+      showCursor(V, P)
+    } else if (e.key === 'Enter' && kb) {
+      e.preventDefault()
+      e.stopPropagation()
+      commit(xV(kb.V), yP(kb.P), false)
+      // Keep the cursor where the new point landed so drawing continues from there.
+      const a = sim.lastState
+      if (a) showCursor(a.V, a.P)
+    }
+  }
 </script>
 
 <div class="graph" bind:this={host}>
+  <!-- role="application" is a keyboard-operable drawing surface (arrows + Enter, see onKey). -->
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
   <svg
     bind:this={svg}
     viewBox="0 0 {G.W} {G.H}"
     preserveAspectRatio="xMidYMid meet"
     role="application"
     aria-label="압력-부피 그래프"
+    aria-describedby="graph-keys graph-live"
+    tabindex="0"
+    onfocus={onFocus}
+    onblur={onBlur}
+    onkeydown={onKey}
     onpointermove={onMove}
     onpointerleave={onLeave}
     onpointerdown={onDown}
@@ -464,6 +538,10 @@
       <button class="linkish" onclick={openPresets}>또는 예시 불러오기</button>
     </div>
   {/if}
+  <span class="sr-only" id="graph-keys"
+    >방향키로 옮기고 Enter로 점을 찍어요. Shift는 큰 걸음이에요.</span
+  >
+  <span class="sr-only" id="graph-live" aria-live="polite">{kb ? say(kb.V, kb.P) : ''}</span>
   {#if readout}
     <div class="readout" class:flip={readout.flip} style="left:{readout.x}px;top:{readout.y}px">
       {readout.text}

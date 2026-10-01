@@ -42,10 +42,21 @@ describe('share links', () => {
     expect(readHash(new URL(url).hash)?.segments).toHaveLength(4)
   })
 
-  it.each(['', 'x;1,2;;o', 'm;abc;;o', 'm;10,300;9:20;o', 'm;10,300;3:20;c', 'm;10,9000;;o'])(
-    'rejects %j',
-    (text) => {
-      expect(decode(text)).toBeNull()
-    },
-  )
+  it('keeps the example name', () => {
+    const back = decode(encode({ ...fromPreset('diesel'), preset: 'diesel' }))
+    expect(back?.preset).toBe('diesel')
+    expect(decode(encode(fromPreset('diesel')))?.preset).toBeUndefined()
+  })
+
+  it.each([
+    '',
+    'x;1,2;;o',
+    'm;10,300;;o;nope',
+    'm;abc;;o',
+    'm;10,300;9:20;o',
+    'm;10,300;3:20;c',
+    'm;10,9000;;o',
+  ])('rejects %j', (text) => {
+    expect(decode(text)).toBeNull()
+  })
 })
