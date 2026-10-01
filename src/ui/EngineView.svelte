@@ -3,8 +3,7 @@
   import { onMount } from 'svelte'
   import { Engine } from '../engine3d/engine'
   import { SPEED_MAX, speedColor, speedU } from '../engine3d/speed'
-  import { LIMITS } from '../physics/path'
-  import { PROC, f0, f1, fmtE } from '../i18n/ko'
+  import { f0, f1 } from '../i18n/ko'
   import { sim } from '../store/simulation.svelte'
   import WhyRow from './WhyRow.svelte'
 
@@ -14,32 +13,8 @@
   let resetView = $state<() => void>(() => {})
 
   const v = $derived(sim.view)
-  const pr = $derived(PROC[v.type])
-  const where = (side: 'hot' | 'cold') =>
-    side === 'hot'
-      ? sim.fridge
-        ? '고온부(실외)'
-        : '고온 열원'
-      : sim.fridge
-        ? '저온부(실내)'
-        : '저온 열원'
-  const heat = $derived.by(() => {
-    if (v.type === 'adiabatic') return { tag: '단열: 열 출입 없음', col: '#F7D98A', val: 'Q = 0' }
-    if (!v.heat || !v.side) return { tag: '열 출입 없음', col: '', val: 'Q = 0' }
-    const w = where(v.side)
-    return {
-      tag: v.heat > 0 ? `${w} → 기체: 열 받음` : `기체 → ${w}: 열 잃음`,
-      col: '#FFA060',
-      val: `Q ${fmtE(v.Q)} J`,
-    }
-  })
-  const work = $derived.by(() => {
-    if (v.type === 'isochoric') return { tag: '피스톤 고정', col: '', val: 'W = 0' }
-    return v.work >= 0
-      ? { tag: '▲ 기체가 일함', col: '', val: `W ${fmtE(v.W)} J` }
-      : { tag: '▼ 기체가 일을 받음', col: '', val: `W ${fmtE(v.W)} J` }
-  })
-  const pct = (x: number, max: number) => `${Math.min(100, Math.max(0, (x / max) * 100))}%`
+  /** The gas state in one quiet line: the same numbers the table shows at segment ends. */
+  const gasLine = $derived(`P ${f0(v.st.P)} kPa   V ${f1(v.st.V)} L   T ${f0(v.st.T)} K`)
 
   /** Speed histogram: bars from the particles, curve from Maxwell's distribution at T. */
   const tmp = new Color()
@@ -158,42 +133,7 @@
     {:else}
       <div class="hud">
         {#if !v.empty}
-          <div class="hud-proc">
-            <span class="chip"
-              ><span class="dot" style="background:var({pr.cssVar})"></span><span>{pr.full}</span
-              ></span
-            >
-            {#if v.live}
-              <span class="chip small"
-                ><span style:color={heat.col || null}>{heat.tag}</span>&nbsp;{heat.val}</span
-              >
-              <span class="chip small" id="hudWork"
-                ><span style:color={work.col || null}>{work.tag}</span>&nbsp;{work.val}</span
-              >
-            {/if}
-          </div>
-          <div class="gauges">
-            <div class="gauge">
-              <div class="gauge-top">
-                <span class="gauge-k">압력 P</span><span class="gauge-v">{f0(v.st.P)} kPa</span>
-              </div>
-              <div class="gauge-bar"><i style="width:{pct(v.st.P, LIMITS.Pmax)}"></i></div>
-            </div>
-            <div class="gauge">
-              <div class="gauge-top">
-                <span class="gauge-k">부피 V</span><span class="gauge-v">{f1(v.st.V)} L</span>
-              </div>
-              <div class="gauge-bar"><i style="width:{pct(v.st.V, LIMITS.Vmax)}"></i></div>
-            </div>
-            <div class="gauge">
-              <div class="gauge-top">
-                <span class="gauge-k">온도 T</span><span class="gauge-v">{f0(v.st.T)} K</span>
-              </div>
-              <div class="gauge-bar">
-                <i class="tbar" style="width:{pct(v.st.T, 1500)}"></i>
-              </div>
-            </div>
-          </div>
+          <output class="hud-state" aria-label="지금 기체 상태">{gasLine}</output>
         {/if}
         <button
           class="hud-reset"
