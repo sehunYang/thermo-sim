@@ -1030,22 +1030,6 @@ tr.current td {
   }
 }
 
-/* Until the 3D engine lands (M3), the engine pane shows what will appear there. */
-.engine-soon {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 6px;
-  color: #a9b7c5;
-  text-align: center;
-  padding: 24px;
-}
-.engine-soon b {
-  color: #e2e9f0;
-  font-size: 15px;
-}
 /* The brand mark keeps its dark tile in both themes so its light strokes stay visible. */
 .brand-mark {
   background: #15202b;
