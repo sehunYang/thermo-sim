@@ -942,6 +942,13 @@ td.st {
 .dots i.on {
   background: var(--accent);
 }
+/* Nothing drawn yet: the scene, the playbar and the table wait quietly. */
+.app.blank .engine-col,
+.app.blank .playbar,
+.app.blank .panel {
+  opacity: 0.4;
+  transition: opacity 0.25s;
+}
 .coach-target {
   position: relative;
   z-index: 21;
@@ -988,9 +995,22 @@ td.st {
   .appbar {
     padding: 8px 10px;
   }
+  /* Phones read top to bottom in the order of use: draw, play, watch, read. */
+  .stage {
+    display: contents;
+  }
+  .graph-pane {
+    order: 1;
+  }
+  .playbar {
+    order: 2;
+  }
   .engine-col {
-    order: -1;
+    order: 3;
     border-bottom: 1px solid var(--line);
+  }
+  .panel {
+    order: 4;
   }
   .engine-col .engine-pane {
     flex: none;
@@ -1034,6 +1054,25 @@ td.st {
   th.st,
   td.st {
     display: none;
+  }
+  /* The sign word goes under its number so all five columns fit. */
+  .say {
+    display: block;
+    margin-left: 0;
+  }
+  .tools .sep {
+    display: none;
+  }
+  .bar-group {
+    flex-wrap: nowrap;
+    width: 100%;
+  }
+  .bar-group .field {
+    flex: 1;
+    min-width: 0;
+  }
+  .bar-group .select {
+    width: 100%;
   }
   th,
   td {
@@ -1091,7 +1130,17 @@ td.st {
    tablet and phone layouts put that target under the card: the dim layer stays below the target,
    the card above it. */
 .coach {
-  z-index: auto;
+  /* Not a stacking context of its own: the dim layer (20), the highlighted target (21) and the
+     card (23) must stack against each other and above reordered phone sections. */
+  position: static;
+  background: none;
+}
+.coach::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgba(8, 13, 19, 0.55);
 }
 .coach-card {
   z-index: 23;

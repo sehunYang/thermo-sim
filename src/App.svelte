@@ -37,7 +37,7 @@
   }
   restore()
 
-  // Show the three-step guide once, on the first visit.
+  // Show the two-step guide once, on the first visit.
   const SEEN_KEY = 'thermo-sim:coach-seen'
   try {
     if (!localStorage.getItem(SEEN_KEY)) {
@@ -84,7 +84,8 @@
 
 <svelte:window onkeydown={onKey} />
 
-<div class="app">
+<!-- Before A exists there is one thing to do; everything but the graph steps back. -->
+<div class="app" class:blank={!sim.start}>
   <AppBar />
   <div class="stage">
     <section class="graph-pane" aria-label="PV 그래프">

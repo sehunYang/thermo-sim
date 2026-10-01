@@ -3,12 +3,11 @@ import { expect, test } from '@playwright/test'
 test.describe('first visit', () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
-  test('shows the three-step guide once', async ({ page }) => {
+  test('shows the two-step guide once', async ({ page }) => {
     await page.goto('./')
     const dialog = page.getByRole('dialog', { name: '사용 안내' })
     await expect(dialog).toBeVisible()
-    await expect(dialog.getByText('1 / 3')).toBeVisible()
-    await dialog.getByRole('button', { name: '다음' }).click()
+    await expect(dialog.getByText('1 / 2')).toBeVisible()
     await dialog.getByRole('button', { name: '다음' }).click()
     await dialog.getByRole('button', { name: '시작하기' }).click()
     await expect(dialog).toBeHidden()
