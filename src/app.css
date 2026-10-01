@@ -199,7 +199,7 @@ button {
   height: 28px;
   border-radius: 7px;
   background: var(--ink);
-  color: var(--surface);
+  color: #edf1f4;
   display: grid;
   place-items: center;
   flex: none;
