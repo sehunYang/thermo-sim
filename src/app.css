@@ -1228,3 +1228,32 @@ td.st {
     height: clamp(480px, calc(80vh - 250px), 1100px);
   }
 }
+
+/* The plane switch: a small word in the corner where the axes meet. */
+.plane-btn {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 4px 6px;
+  min-height: 28px;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+.plane-btn:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+@media (pointer: coarse) {
+  .plane-btn {
+    min-width: 44px;
+    min-height: 44px;
+    left: 0;
+    bottom: 0;
+  }
+}
