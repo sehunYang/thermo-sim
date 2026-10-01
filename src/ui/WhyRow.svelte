@@ -31,7 +31,7 @@
       {#each steps as x (x)}<li><span>{x}</span></li>{/each}
     </ol>
     <div class="why-legend">
-      <span>U자관: 은색 수은이 내려간 쪽의 압력이 더 커요</span><span
+      <span>U자관: 각 쪽 수은 높이가 그쪽 압력을 나타내요 (압력이 클수록 낮음)</span><span
         >Δh = 두 압력의 차이 (보이도록 과장)</span
       >
     </div>

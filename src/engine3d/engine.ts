@@ -127,7 +127,8 @@ export class Engine {
   private props = { w: 0, p: 0, j: 0 }
   private flow = 0
   private velF = 0
-  private dh = 0
+  private hOut = 0.95
+  private manoReady = false
   private tmpC = new THREE.Color()
   private tmpC2 = new THREE.Color()
   private mat4 = new THREE.Matrix4()
@@ -658,14 +659,19 @@ export class Engine {
     } else Pext = st.P * (1 - 0.5 * v.vdir * this.velF)
     this.Pext = v.live ? Pext : null
 
-    // Manometer: the higher pressure pushes its side of the mercury down; Δh follows P − P_ext.
-    const dhT = v.live ? 1.1 * Math.tanh((6 * (st.P - Pext)) / PMAX) : 0
-    this.dh += (dhT - this.dh) * k6
+    // Manometer: each arm's mercury level follows its own side's pressure (higher pressure, lower
+    // level), so the gas arm moves exactly as continuously as the gas pressure does. Only the
+    // outside arm may move quickly, and it is eased so it never teleports. Δh = P − P_ext.
     {
       const M = this.MANO
-      const L0 = 0.95
-      const hl = Math.max(0.05, L0 - this.dh / 2)
-      const hr = Math.max(0.05, L0 + this.dh / 2)
+      const level = (p: number) => Math.max(0.08, Math.min(1.9, 1.85 - (1.7 * p) / PMAX))
+      const hl = level(st.P)
+      this.hOut += (level(v.live ? Pext : st.P) - this.hOut) * Math.min(1, dt * 10)
+      if (!this.manoReady) {
+        this.hOut = hl
+        this.manoReady = true
+      }
+      const hr = this.hOut
       this.colL.scale.y = hl
       this.colL.position.y = M.MYB + hl / 2
       this.colR.scale.y = hr
@@ -673,7 +679,7 @@ export class Engine {
       const yl = M.MYB + hl
       const yr = M.MYB + hr
       const xm = M.MX2 + 0.2
-      this.dhLine.visible = Math.abs(this.dh) > 0.05
+      this.dhLine.visible = Math.abs(hr - hl) > 0.05
       this.dhLine.position.set(xm, Math.min(yl, yr), M.MZ)
       this.dhLine.scale.y = Math.abs(yr - yl) || 0.001
       this.labDh.visible = this.dhLine.visible
