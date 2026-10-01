@@ -1006,7 +1006,8 @@ td.st {
   .why ol {
     grid-template-columns: 1fr;
   }
-  .graph-empty p {
+  /* Beats the base 18 px rule, which comes later in this file. */
+  .graph .graph-empty p {
     font-size: 14px;
   }
   .graph {
@@ -1147,6 +1148,8 @@ td.st {
   .tool,
   .run,
   .select,
+  .tab,
+  .menu button,
   .hud-reset,
   .btn.icon {
     min-height: 44px;
