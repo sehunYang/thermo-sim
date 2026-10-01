@@ -6,11 +6,10 @@
 
   const steps = $derived.by(() => {
     const v = sim.view
-    if (!v.live) return null
+    if (v.empty || !sim.resolved.length) return null
     const w = WHY[v.type]
     if (Array.isArray(w)) return w
-    const mv = v.moving ? v.vdir : 0
-    return mv > 0 ? w.expand : mv < 0 ? w.compress : null
+    return v.vdir > 0 ? w.expand : v.vdir < 0 ? w.compress : null
   })
   const sub = $derived.by(() => {
     const v = sim.view

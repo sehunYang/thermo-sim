@@ -49,7 +49,7 @@ test('a Carnot cycle can be drawn by hand and closes', async ({ page }) => {
   await expect(page.getByText('순환이 닫혔어요 · 실행을 눌러 보세요')).toBeVisible()
   await expect(page.locator('tbody tr')).toHaveCount(4)
   await page.getByRole('tab', { name: '순환 분석' }).click()
-  await expect(page.getByText('열효율 η = W/Qin')).toBeVisible()
+  await expect(page.getByText('이 순환의 열효율 η')).toBeVisible()
 })
 
 test('undo removes the last segment and redo restores it', async ({ page }) => {

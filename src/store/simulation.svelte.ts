@@ -11,7 +11,7 @@ import {
   isValidState,
   reservoirSides,
   resolve,
-  temperatureRange,
+  reservoirLabels,
   type ProcessPath,
   type Segment,
 } from '../physics/path'
@@ -65,7 +65,7 @@ export class Simulation {
   )
   cycle = $derived(this.path ? analyzeCycle(this.path) : null)
   sides = $derived(this.path ? reservoirSides(this.path) : [])
-  trange = $derived(this.path ? temperatureRange(this.path) : null)
+  reservoirT = $derived(this.path ? reservoirLabels(this.path) : null)
   fridge = $derived(this.cycle?.kind === 'refrigerator')
 
   play = $state<PlayState>({

@@ -1,5 +1,4 @@
 import * as THREE from 'three'
-import type { TemperatureRange } from '../physics/path'
 import { LIMITS } from '../physics/path'
 import { easeS } from '../physics/timeline'
 import { speedColor, speedU, vrmsAt } from './speed'
@@ -99,8 +98,8 @@ interface Packet {
 export interface FrameContext {
   view: View
   fridge: boolean
-  closed: boolean
-  trange: TemperatureRange | null
+  /** Temperature printed on each reservoir box (closed paths only). */
+  reservoirT: { hot: number; cold: number } | null
 }
 
 export class EngineUnavailable extends Error {}
@@ -126,6 +125,8 @@ export class Engine {
   private hCur = hOfV(20)
   private props = { w: 0, p: 0, j: 0 }
   private flow = 0
+  /** Packet travel clock; advances only while the playhead moves. */
+  private pkT = 0
   private velF = 0
   private motion = 0
   private hOut = 0.95
@@ -485,6 +486,8 @@ export class Engine {
     const pGeo = new THREE.SphereGeometry(0.036, 10, 8)
     const pm = new THREE.MeshStandardMaterial({ roughness: 0.4, metalness: 0, emissive: 0x111111 })
     this.inst = new THREE.InstancedMesh(pGeo, pm, NP)
+    // The particles move every frame; a bounding sphere cached from one frame would cull them all.
+    this.inst.frustumCulled = false
     for (let i = 0; i < NP; i++) this.inst.setColorAt(i, this.tmpC.set(0xffffff))
     scene.add(this.inst)
     const { pos, vel } = this
@@ -612,7 +615,7 @@ export class Engine {
 
   /** Advance the scene by dt seconds and draw it. */
   frame(dt: number, ctx: FrameContext) {
-    const { view: v, fridge, closed, trange } = ctx
+    const { view: v, fridge, reservoirT } = ctx
     const { st, type } = v
     const tnow = performance.now() / 1000
     const k6 = Math.min(1, dt * 6)
@@ -691,9 +694,12 @@ export class Engine {
     }
 
     // Heat: which reservoir, which way, how strong.
-    const dir = Math.abs(v.dq) < 0.02 ? 0 : Math.sign(v.dq)
-    const inten = Math.min(1, Math.abs(v.dq) * 1.3)
+    // Direction and reservoir come from the whole segment, so they hold while paused and at the
+    // segment boundaries where the rate passes through zero; only the strength follows the rate.
+    const dir = v.heat
+    const inten = v.moving ? Math.max(0.2, Math.min(1, Math.abs(v.dq) * 1.3)) : 0.45
     const side = dir ? v.side : null
+    if (v.moving) this.pkT += dt * (0.28 + 0.35 * inten)
     this.flow += ((side ? 1 : 0) - this.flow) * Math.min(1, dt * 5)
     for (const k of ['hot', 'cold'] as const) {
       const br = this.bridges[k]
@@ -714,8 +720,7 @@ export class Engine {
             ? '저온부 (실내)'
             : '저온 열원'
       const col = k === 'hot' ? '#FF8A6A' : '#7FB4FF'
-      let l2 =
-        trange && closed ? `${Math.round(k === 'hot' ? trange.Tmax : trange.Tmin)} K 부근` : ''
+      let l2 = reservoirT ? `${Math.round(reservoirT[k])} K 부근` : ''
       if (on) l2 = dir > 0 ? '▶ 기체에 열을 줌' : '◀ 기체에서 열을 받음'
       R.lab.setText(name, l2, col)
     }
@@ -737,7 +742,8 @@ export class Engine {
         [p.ex * 0.6, 0.05, p.ez * 0.6],
         [p.ex, p.ey, p.ez],
       ]
-      let u = (tnow * (0.28 + 0.35 * inten) + p.phase) % 1
+      // Packets advance only while playing: a paused frame freezes them in place.
+      let u = (this.pkT + p.phase) % 1
       if (dir < 0) u = 1 - u
       const q = along(path, u)
       p.mesh.position.set(q[0], q[1], q[2])
