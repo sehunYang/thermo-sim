@@ -65,6 +65,46 @@
     )
   }
 
+  // Guides, share, theme and help live behind one button: they are used now and then, not
+  // every minute, so they don't need a place on screen.
+  let menuOpen = $state(false)
+  let menuBtn: HTMLButtonElement | undefined = $state()
+  let menu: HTMLDivElement | undefined = $state()
+  const items = () => [...(menu?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? [])]
+  function openMenu() {
+    menuOpen = true
+    queueMicrotask(() => items()[0]?.focus())
+  }
+  function closeMenu(refocus = true) {
+    menuOpen = false
+    if (refocus) menuBtn?.focus()
+  }
+  function pick(fn: () => void) {
+    // Back on the menu button first, so a dialog opened from here returns focus to it.
+    closeMenu()
+    fn()
+  }
+  function onMenuKey(e: KeyboardEvent) {
+    const all = items()
+    const i = all.indexOf(document.activeElement as HTMLElement)
+    if (e.key === 'Escape') {
+      e.stopPropagation()
+      closeMenu()
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      const d = e.key === 'ArrowDown' ? 1 : -1
+      all[(i + d + all.length) % all.length]?.focus()
+    } else if (e.key === 'Home' || e.key === 'End') {
+      e.preventDefault()
+      ;(e.key === 'Home' ? all[0] : all.at(-1))?.focus()
+    } else if (e.key === 'Tab') closeMenu(false)
+  }
+  function onWinDown(e: PointerEvent) {
+    if (!menuOpen) return
+    const t = e.target as Node
+    if (!menu?.contains(t) && !menuBtn?.contains(t)) closeMenu(false)
+  }
+
   function toggleTheme() {
     const r = document.documentElement
     const dark = r.dataset.theme
@@ -78,6 +118,8 @@
     }
   }
 </script>
+
+<svelte:window onpointerdown={onWinDown} />
 
 <div class="appbar">
   <div class="brand">
@@ -143,62 +185,52 @@
         <option value="di">이원자 γ=7/5</option>
       </select>
     </label>
-    <button
-      class="btn"
-      aria-pressed={sim.guides}
-      aria-label="보조선"
-      title="등온선·단열선 보조선"
-      onclick={() => (sim.guides = !sim.guides)}
-    >
-      <svg width="16" height="16" viewBox="0 0 16 16"
-        ><path
-          d="M2 3c2 7 6 10 12 11M2 7c2 4 5 6 12 7"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.3"
-          stroke-dasharray="2 2"
-        /></svg
-      ><span class="hide-sm">보조선</span></button
-    >
-    <button class="btn icon" title="공유 링크 복사" aria-label="공유 링크 복사" onclick={share}>
-      <svg width="16" height="16" viewBox="0 0 16 16"
-        ><path
-          d="M6.5 9.5l3-3M5 7.5L3.6 8.9a2.5 2.5 0 003.5 3.5L8.5 11M11 8.5l1.4-1.4a2.5 2.5 0 00-3.5-3.5L7.5 5"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.4"
-          stroke-linecap="round"
-        /></svg
-      ></button
-    >
-    <button
-      class="btn icon"
-      title="라이트/다크 전환"
-      aria-label="라이트/다크 전환"
-      onclick={toggleTheme}
-    >
-      <svg width="16" height="16" viewBox="0 0 16 16"
-        ><circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.4" /><path
-          d="M8 2.5a5.5 5.5 0 010 11z"
-          fill="currentColor"
-        /></svg
-      ></button
-    >
-    <button
-      class="btn icon"
-      title="도움말"
-      aria-label="도움말"
-      onclick={() => (sim.help = 'start')}
-    >
-      <svg width="16" height="16" viewBox="0 0 16 16"
-        ><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.4" /><path
-          d="M6.3 6.3a1.8 1.8 0 113 1.3c-.7.5-1.3.8-1.3 1.7"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.4"
-          stroke-linecap="round"
-        /><circle cx="8" cy="11.4" r=".8" fill="currentColor" /></svg
-      ></button
-    >
+    <div class="menu-wrap">
+      <button
+        class="btn icon"
+        bind:this={menuBtn}
+        aria-label="더 보기"
+        title="보조선 · 공유 · 테마 · 도움말"
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        onclick={() => (menuOpen ? closeMenu() : openMenu())}
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"
+          ><circle cx="3.5" cy="8" r="1.3" fill="currentColor" /><circle
+            cx="8"
+            cy="8"
+            r="1.3"
+            fill="currentColor"
+          /><circle cx="12.5" cy="8" r="1.3" fill="currentColor" /></svg
+        >
+      </button>
+      {#if menuOpen}
+        <div
+          class="menu"
+          role="menu"
+          aria-label="더 보기"
+          bind:this={menu}
+          tabindex="-1"
+          onkeydown={onMenuKey}
+        >
+          <button
+            role="menuitemcheckbox"
+            aria-checked={sim.guides}
+            onclick={() => pick(() => (sim.guides = !sim.guides))}
+            ><span class="menu-check" aria-hidden="true">{sim.guides ? '✓' : ''}</span>보조선
+            (등온선·단열선)</button
+          >
+          <button role="menuitem" onclick={() => pick(share)}
+            ><span class="menu-check"></span>공유 링크 복사</button
+          >
+          <button role="menuitem" onclick={() => pick(toggleTheme)}
+            ><span class="menu-check"></span>라이트/다크 전환</button
+          >
+          <button role="menuitem" onclick={() => pick(() => (sim.help = 'start'))}
+            ><span class="menu-check"></span>도움말</button
+          >
+        </div>
+      {/if}
+    </div>
   </div>
 </div>

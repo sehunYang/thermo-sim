@@ -129,6 +129,50 @@ button {
   min-height: 100vh;
 }
 /* ---------- app ---------- */
+/* The "더 보기" menu: a plain list under its button. */
+.menu-wrap {
+  position: relative;
+}
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  min-width: 210px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  display: flex;
+  flex-direction: column;
+}
+.menu button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 6px 10px 6px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  text-align: left;
+}
+.menu button:hover,
+.menu button:focus-visible {
+  background: var(--surface-2);
+}
+.menu-check {
+  width: 18px;
+  text-align: center;
+  color: var(--accent);
+}
+.btn.speed {
+  min-width: 52px;
+  justify-content: center;
+}
 .app {
   display: flex;
   flex-direction: column;
@@ -992,6 +1036,7 @@ tr.current td {
   .tab,
   .endin,
   .hud-reset,
+  .menu button,
   .linkish {
     min-height: 44px;
   }
@@ -1014,8 +1059,7 @@ tr.current td {
 }
 
 /* The loop toggle is on by default; its pressed state is the icon colour, not a filled box. */
-.btn.loop[aria-pressed='true'],
-.appbar .btn[aria-pressed='true'] {
+.btn.loop[aria-pressed='true'] {
   background: var(--surface);
   border-color: var(--line);
 }

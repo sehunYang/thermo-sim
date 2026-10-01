@@ -78,7 +78,7 @@ test('auto-complete closes an open path back onto A', async ({ page }) => {
   await page.getByRole('button', { name: '자동 완성' }).click()
   await expect(page.getByText('순환이 닫혔어요 · 실행을 눌러 보세요')).toBeVisible()
   await expect(page.locator('tbody tr')).toHaveCount(3)
-  await expect(page.getByRole('button', { name: '자동 완성' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: '자동 완성' })).toHaveCount(0)
 })
 
 test('a closing segment that just misses A snaps onto it', async ({ page }) => {

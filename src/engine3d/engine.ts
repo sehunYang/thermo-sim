@@ -592,19 +592,19 @@ export class Engine {
       ),
     )
     const labGas = makeLabel()
-    labGas.scale.set(1.45, 0.48, 1)
+    labGas.scale.set(1.9, 0.63, 1)
     labGas.position.set(MX1 - 0.1, 3.02, MZ)
     labGas.setText('기체 쪽', '', '#9FD4FF')
     mano.add(labGas)
     const labOut = makeLabel()
-    labOut.scale.set(1.45, 0.48, 1)
-    labOut.position.set(MX2 + 0.28, MYT + 0.22, MZ)
-    labOut.setText('바깥 쪽', '', '#E8C070')
+    // The drawing exaggerates the level difference; the note stays on screen with the tube.
+    labOut.scale.set(1.9, 0.63, 1)
+    labOut.position.set(MX2 + 0.3, MYT + 0.16, MZ)
+    labOut.setText('바깥 쪽', 'Δh 크게 그림', '#E8C070')
     mano.add(labOut)
     this.labDh = makeLabel()
-    // The drawing exaggerates the level difference; say so right where the difference is drawn.
-    this.labDh.scale.set(1.7, 0.565, 1)
-    this.labDh.setText('Δh', '크게 그림', '#FFD08A')
+    this.labDh.scale.set(1.2, 0.4, 1)
+    this.labDh.setText('Δh', '', '#FFD08A')
     mano.add(this.labDh)
     this.dhLine = new THREE.Mesh(
       new THREE.BoxGeometry(0.03, 1, 0.03).translate(0, 0.5, 0),
@@ -701,7 +701,7 @@ export class Engine {
       this.dhLine.position.set(xm, Math.min(yl, yr), M.MZ)
       this.dhLine.scale.y = Math.abs(yr - yl) || 0.001
       this.labDh.visible = this.dhLine.visible
-      this.labDh.position.set(xm + 0.45, (yl + yr) / 2, M.MZ)
+      this.labDh.position.set(xm + 0.2, (yl + yr) / 2, M.MZ)
     }
 
     // Heat: which reservoir, which way, how strong.
