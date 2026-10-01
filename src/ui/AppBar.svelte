@@ -102,8 +102,9 @@
       </select>
     </label>
     <button
-      class="btn hide-sm"
+      class="btn"
       aria-pressed={sim.guides}
+      aria-label="보조선"
       title="등온선·단열선 보조선"
       onclick={() => (sim.guides = !sim.guides)}
     >
@@ -115,7 +116,7 @@
           stroke-width="1.3"
           stroke-dasharray="2 2"
         /></svg
-      >보조선</button
+      ><span class="hide-sm">보조선</span></button
     >
     <button class="btn icon" title="공유 링크 복사" aria-label="공유 링크 복사" onclick={share}>
       <svg width="16" height="16" viewBox="0 0 16 16"

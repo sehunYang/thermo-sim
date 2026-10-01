@@ -168,8 +168,9 @@
   }
 
   function onDown(e: PointerEvent) {
-    // Touching the graph leaves playback and goes back to editing.
-    if (sim.play.active) sim.stopPlay()
+    // On an open path, touching the graph leaves playback and goes back to editing. A closed
+    // cycle has nothing left to draw, so a stray touch must not reset its playback.
+    if (sim.play.active && !sim.closed) sim.stopPlay()
     dragging = true
     svg.setPointerCapture(e.pointerId)
     const p = svgPoint(e)

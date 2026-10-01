@@ -89,7 +89,6 @@ body {
   font-family: var(--sans);
   font-size: 14px;
   line-height: 1.5;
-  padding: 24px 16px 48px;
 }
 button,
 select,
@@ -108,26 +107,11 @@ button {
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
 }
+/* The app fills the window: no card, no shadow, no outer padding. */
 .app {
-  max-width: 1360px;
-  margin: 0 auto;
   container: app / inline-size;
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-@media (max-width: 540px) {
-  body {
-    padding: 0;
-  }
-  .app {
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-    overflow: visible;
-  }
+  min-height: 100vh;
 }
 /* ---------- app ---------- */
 .app {
@@ -223,7 +207,7 @@ button {
   display: grid;
   grid-template-columns: 45fr 55fr;
   grid-template-rows: minmax(0, 1fr);
-  height: 500px;
+  height: clamp(480px, calc(100vh - 250px), 1100px);
 }
 .graph-pane {
   display: flex;
@@ -954,7 +938,7 @@ tr.current td {
   #hudWork {
     display: none;
   }
-  .hud-reset {
+  .hud .hud-reset {
     top: 10px;
     bottom: auto;
   }
@@ -967,8 +951,11 @@ tr.current td {
     border-top: 1px solid var(--line-soft);
     height: 104px;
   }
-  .playbar {
+  /* Sticky only once there is something to play: while drawing it would cover the graph. */
+  .playbar.stick {
     position: sticky;
+  }
+  .playbar {
     bottom: 0;
     z-index: 5;
     padding: 8px 10px;
@@ -979,7 +966,19 @@ tr.current td {
     flex-basis: 100%;
   }
   .time {
-    margin-left: auto;
+    display: none;
+  }
+  /* Phones keep the columns that answer "did it take heat, did it do work". */
+  table {
+    min-width: 0;
+  }
+  th:nth-child(n + 3):nth-child(-n + 6),
+  td:nth-child(n + 3):nth-child(-n + 6) {
+    display: none;
+  }
+  th,
+  td {
+    padding: 7px 6px;
   }
   .tool {
     padding: 5px 9px 5px 7px;
@@ -1020,7 +1019,11 @@ tr.current td {
   .tool,
   .run,
   .select,
-  .tab {
+  .tab,
+  .endin,
+  .why-tog,
+  .hud-reset,
+  .linkish {
     min-height: 44px;
   }
   .btn.icon {
@@ -1030,8 +1033,6 @@ tr.current td {
   .scrub input {
     height: 44px;
   }
-}
-@container app (max-width: 540px) {
 }
 /* The guide's card must sit above the highlighted target (z-index 21) even when the stacked
    tablet and phone layouts put that target under the card: the dim layer stays below the target,
@@ -1076,4 +1077,15 @@ tr.current td {
   text-decoration: underline;
   text-underline-offset: 3px;
   padding: 6px;
+}
+
+/* Projector and large monitors: everything a quarter larger, so the back row can read it. */
+@media (min-width: 1600px) and (min-height: 860px) {
+  .app {
+    zoom: 1.25;
+    min-height: 80vh;
+  }
+  .stage {
+    height: clamp(480px, calc(80vh - 250px), 1100px);
+  }
 }
