@@ -40,10 +40,13 @@ test('the state line under the scene matches the table at segment ends', async (
   for (let i = 1; i <= 3; i++) {
     // The playhead at i/4 sits exactly on the end of segment i.
     await page.getByLabel('재생 위치').fill(String(i * 250))
-    const cells = rows.nth(i - 1).locator('td')
-    const end = async (col: number) =>
-      ((await cells.nth(col).innerText()).split('→')[1] ?? '').trim()
-    const [V, P, T] = [await end(2), await end(3), await end(4)]
+    // The state cell reads "V₁→V₂ · P₁→P₂ · T₁→T₂"; take each end value.
+    const cell = await rows
+      .nth(i - 1)
+      .locator('td.st')
+      .textContent()
+    const [V, P, T] = (cell ?? '').split('·').map((x) => (x.split('→')[1] ?? '').trim())
+    expect(V && P && T).toBeTruthy()
     const line = page.locator('.hud-state')
     await expect(line).toContainText(`P ${P} kPa`)
     await expect(line).toContainText(`V ${V} L`)

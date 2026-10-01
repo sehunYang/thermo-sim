@@ -18,17 +18,6 @@
   const say = (v: number, pos: string, neg: string) => (v > 0.5 ? pos : v < -0.5 ? neg : '없음')
   const pct = (x: number) => `${(x * 100).toFixed(1)}%`
 
-  function onEnd(i: number, e: Event) {
-    const v = Number((e.currentTarget as HTMLInputElement).value)
-    if (!sim.setEnd(i, v)) {
-      sim.notify('그 값이면 뒤 구간이 범위를 벗어나요')
-      // Put the field back to the stored value.
-      const r = sim.resolved[i]
-      ;(e.currentTarget as HTMLInputElement).value =
-        r.segment.type === 'isochoric' ? f0(r.b.P) : f1(r.b.V)
-    }
-  }
-
   // The law tab follows the playhead; without one it shows the first segment in full.
   const cur = $derived(sim.play.active ? sim.play.seg : -1)
   const law = $derived.by(() => {
@@ -96,15 +85,13 @@
           <table>
             <thead>
               <tr>
-                <th>구간</th><th>과정</th><th>V (L)</th><th>P (kPa)</th><th>T (K)</th><th
-                  >끝값 수정</th
-                ><th>W (J)</th><th>Q (J)</th><th>ΔU (J)</th>
+                <th>구간</th><th>과정</th><th class="st">상태 V (L) · P (kPa) · T (K)</th><th
+                  >W (J)</th
+                ><th>Q (J)</th><th>ΔU (J)</th>
               </tr>
             </thead>
             <tbody>
               {#each sim.resolved as r, i (r.segment.id)}
-                {@const iso = r.segment.type === 'isochoric'}
-                {@const lock = sim.closed && i === n - 1}
                 {@const e = r.energy}
                 <tr class:current={i === cur}>
                   <td><b>{LETTERS[i]}→{toLabel(i)}</b></td>
@@ -113,22 +100,9 @@
                       ><Swatch type={r.segment.type} width={28} />{PROC[r.segment.type].name}</span
                     ></td
                   >
-                  <td class="num">{f1(r.a.V)}→{f1(r.b.V)}</td>
-                  <td class="num">{f0(r.a.P)}→{f0(r.b.P)}</td>
-                  <td class="num">{f0(r.a.T)}→{f0(r.b.T)}</td>
-                  <td>
-                    <span style="font-size:11px;color:var(--muted)">{iso ? 'P₂' : 'V₂'}</span>
-                    <input
-                      class="endin"
-                      type="number"
-                      step={iso ? 5 : 0.5}
-                      value={iso ? f0(r.b.P) : f1(r.b.V)}
-                      disabled={lock}
-                      title={lock ? '순환을 닫는 구간은 A에 고정돼요' : undefined}
-                      aria-label="{LETTERS[i]}→{toLabel(i)} 끝값"
-                      onchange={(ev) => onEnd(i, ev)}
-                    />
-                  </td>
+                  <td class="num st"
+                    >{f1(r.a.V)}→{f1(r.b.V)} · {f0(r.a.P)}→{f0(r.b.P)} · {f0(r.a.T)}→{f0(r.b.T)}</td
+                  >
                   <td class="num"
                     >{fmtE(e.W)}<small class="say">{say(e.W, '기체가 함', '기체가 받음')}</small
                     ></td

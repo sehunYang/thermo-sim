@@ -84,9 +84,70 @@
       const x = xV(p.V)
       const y = yP(p.P)
       const right = x > G.L + PW - 30
-      return { x, y, lx: x + (right ? -10 : 9), anchor: right ? 'end' : 'start', label: LETTERS[i] }
+      return {
+        i,
+        x,
+        y,
+        lx: x + (right ? -10 : 9),
+        anchor: right ? 'end' : 'start',
+        label: LETTERS[i],
+      }
     })
   })
+
+  // Pressing a vertex (or Enter on it) opens one field for the segment's free end value: P₂ for
+  // isochoric, V₂ for the others. The process fixes everything else, as before in the table.
+  let vedit = $state<{ i: number; x: number; y: number; flip: boolean } | null>(null)
+  let overV = $state(false)
+  let vpress = -1
+  function vertexAt(px: number, py: number) {
+    if (P.playing) return -1
+    let best = -1
+    let bd = 10
+    for (const v of vertices) {
+      const d = Math.hypot(v.x - px, v.y - py)
+      if (v.i > 0 && d < bd) [best, bd] = [v.i, d]
+    }
+    return best
+  }
+  /** Large screens draw the app with CSS zoom; positions inside the graph are unzoomed pixels. */
+  function zoom() {
+    const app = host.closest<HTMLElement>('.app')
+    return (app && parseFloat(getComputedStyle(app).zoom)) || 1
+  }
+  function openEdit(i: number) {
+    const v = vertices.find((w) => w.i === i)
+    const ctm = svg.getScreenCTM()
+    if (!v || !ctm) return
+    const r = host.getBoundingClientRect()
+    const z = zoom()
+    const y = (v.y * ctm.d + ctm.f - r.top) / z
+    vedit = { i, x: (v.x * ctm.a + ctm.e - r.left) / z, y, flip: y > r.height / z - 70 }
+    ghost = null
+    readout = null
+    hover = null
+    queueMicrotask(() => host.querySelector<HTMLInputElement>('.vedit input')?.select())
+  }
+  function applyEdit(e: Event) {
+    if (!vedit) return
+    const el = e.currentTarget as HTMLInputElement
+    if (!sim.setEnd(vedit.i - 1, Number(el.value)))
+      sim.notify('그 값이면 뒤 구간이 범위를 벗어나요')
+  }
+  function editKey(e: KeyboardEvent) {
+    e.stopPropagation()
+    if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur()
+    else if (e.key === 'Escape') {
+      vedit = null
+      svg.focus()
+    }
+  }
+  function vertexKey(e: KeyboardEvent, i: number) {
+    if (e.key !== 'Enter' && e.key !== ' ') return
+    e.preventDefault()
+    e.stopPropagation()
+    openEdit(i)
+  }
 
   // One line of guidance while drawing; during playback the graph and the 3D chips say enough.
   const status = $derived.by(() => {
@@ -148,6 +209,10 @@
     pt.y = e.clientY
     return pt.matrixTransform(svg.getScreenCTM()!.inverse())
   }
+  const svgXY = (e: PointerEvent): [number, number] => {
+    const p = svgPoint(e)
+    return [p.x, p.y]
+  }
 
   function ghostAt(px: number, py: number, snapOff: boolean): Ghost | null {
     const a = sim.lastState
@@ -169,15 +234,18 @@
 
   function onMove(e: PointerEvent) {
     const p = svgPoint(e)
+    overV = vertexAt(p.x, p.y) > 0
+    if (vedit || vpress > 0) return
     const V = Math.max(0, Math.min(VMAX, Vx(p.x)))
     const P = Math.max(0, Math.min(PMAX, Py(p.y)))
     hover = { V, P }
     const r = host.getBoundingClientRect()
+    const z = zoom()
     readout = {
-      x: e.clientX - r.left,
-      y: e.clientY - r.top,
+      x: (e.clientX - r.left) / z,
+      y: (e.clientY - r.top) / z,
       // Keep the readout inside the pane near its right edge.
-      flip: e.clientX - r.left > r.width - 200,
+      flip: e.clientX - r.left > r.width - 200 * z,
       text: `V ${f1(V)} L · P ${f0(P)} kPa · T ${f0(temperature(sim.gas, P, V))} K`,
     }
     ghost = ghostAt(p.x, p.y, e.shiftKey)
@@ -192,6 +260,11 @@
   }
 
   function onDown(e: PointerEvent) {
+    const v = vertexAt(...svgXY(e))
+    if (v > 0) {
+      vpress = v
+      return
+    }
     // On an open path, touching the graph leaves playback and goes back to editing. A closed
     // cycle has nothing left to draw, so a stray touch must not reset its playback.
     if (sim.play.active && !sim.closed) sim.stopPlay()
@@ -232,6 +305,11 @@
   }
 
   function onUp(e: PointerEvent) {
+    if (vpress > 0) {
+      if (vertexAt(...svgXY(e)) === vpress) openEdit(vpress)
+      vpress = -1
+      return
+    }
     dragging = false
     const p = svgPoint(e)
     commit(p.x, p.y, e.shiftKey)
@@ -314,6 +392,7 @@
     onpointerleave={onLeave}
     onpointerdown={onDown}
     onpointerup={onUp}
+    style:cursor={overV ? 'pointer' : null}
   >
     <defs>
       <clipPath id="plotclip"><rect x={G.L} y={G.T} width={PW} height={PH} /></clipPath>
@@ -498,14 +577,31 @@
     {/if}
 
     {#each vertices as v (v.label)}
-      <circle
-        cx={v.x}
-        cy={v.y}
-        r="4.5"
-        fill="var(--surface)"
-        stroke="var(--ink)"
-        stroke-width="1.6"
-      />
+      {#if v.i > 0 && !P.playing}
+        <!-- A vertex after A is a button: it opens the field for that segment's end value. -->
+        <circle
+          class="vertex"
+          cx={v.x}
+          cy={v.y}
+          r="4.5"
+          fill="var(--surface)"
+          stroke="var(--ink)"
+          stroke-width="1.6"
+          role="button"
+          tabindex="0"
+          aria-label="{v.label} 값 바꾸기"
+          onkeydown={(e) => vertexKey(e, v.i)}><title>{v.label} 값 바꾸기</title></circle
+        >
+      {:else}
+        <circle
+          cx={v.x}
+          cy={v.y}
+          r="4.5"
+          fill="var(--surface)"
+          stroke="var(--ink)"
+          stroke-width="1.6"
+        />
+      {/if}
       <text
         x={v.lx}
         y={v.y - 8}
@@ -560,6 +656,22 @@
     >방향키로 옮기고 Enter로 점을 찍어요. Shift는 큰 걸음이에요.</span
   >
   <span class="sr-only" id="graph-live" aria-live="polite">{kb ? say(kb.V, kb.P) : ''}</span>
+  {#if vedit && sim.resolved[vedit.i - 1]}
+    {@const r = sim.resolved[vedit.i - 1]}
+    {@const iso = r.segment.type === 'isochoric'}
+    <label class="vedit" class:flip={vedit.flip} style="left:{vedit.x}px;top:{vedit.y}px">
+      {LETTERS[vedit.i]}
+      {iso ? 'P (kPa)' : 'V (L)'}
+      <input
+        type="number"
+        step={iso ? 5 : 0.5}
+        value={iso ? f0(r.b.P) : f1(r.b.V)}
+        onchange={applyEdit}
+        onkeydown={editKey}
+        onblur={() => (vedit = null)}
+      />
+    </label>
+  {/if}
   {#if readout}
     <div class="readout" class:flip={readout.flip} style="left:{readout.x}px;top:{readout.y}px">
       {readout.text}

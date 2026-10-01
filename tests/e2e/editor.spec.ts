@@ -93,5 +93,22 @@ test('a closing segment that just misses A snaps onto it', async ({ page }) => {
   await clickAt(page, 10.3, 296)
   await expect(page.getByText('순환이 닫혔어요 · 실행을 눌러 보세요')).toBeVisible()
   await expect(page.locator('tbody tr')).toHaveCount(3)
-  await expect(page.locator('tbody tr').nth(1).locator('td').nth(2)).toHaveText('10.0→20.0')
+  await expect(page.locator('tbody tr').nth(1).locator('td.st')).toContainText('10.0→20.0 ·')
+})
+
+test('pressing a vertex edits its value in place', async ({ page }) => {
+  await page.goto('./')
+  await page.getByLabel('예시 경로').selectOption('carnot')
+  // Carnot's B sits at 20 L on the first isotherm.
+  await page.getByRole('button', { name: 'B 값 바꾸기' }).focus()
+  await page.keyboard.press('Enter')
+  const field = page.locator('.vedit input')
+  await expect(field).toBeFocused()
+  await expect(field).toHaveValue('20.0')
+  await field.fill('22')
+  await page.keyboard.press('Enter')
+  await expect(field).toHaveCount(0)
+  await expect(page.locator('tbody tr').first().locator('td.st')).toContainText('10.0→22.0')
+  // The process still holds: the isotherm keeps T, so A→B stays 500→500 K.
+  await expect(page.locator('tbody tr').first().locator('td.st')).toContainText('500→500')
 })

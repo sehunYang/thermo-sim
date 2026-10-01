@@ -651,15 +651,51 @@ tr.current td {
 .pchip svg {
   flex: none;
 }
-.endin {
+/* The states a segment passes through: quiet, so the energies lead. */
+td.st {
+  color: var(--muted);
+}
+/* Typing a vertex's value, right where the vertex is. */
+.vedit {
+  position: absolute;
+  z-index: 6;
+  transform: translate(-50%, 14px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.vedit.flip {
+  transform: translate(-50%, calc(-100% - 14px));
+}
+.graph .vertex:focus-visible {
+  outline: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+.vedit input::-webkit-inner-spin-button,
+.vedit input::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+.vedit input {
+  appearance: textfield;
   width: 74px;
   text-align: right;
   border: 1px solid var(--field);
   border-radius: 6px;
   background: var(--surface);
+  color: var(--ink);
   padding: 3px 6px;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13px;
 }
 .say {
   margin-left: 6px;
@@ -992,8 +1028,8 @@ tr.current td {
   table {
     min-width: 0;
   }
-  th:nth-child(n + 3):nth-child(-n + 6),
-  td:nth-child(n + 3):nth-child(-n + 6) {
+  th.st,
+  td.st {
     display: none;
   }
   th,
@@ -1034,7 +1070,7 @@ tr.current td {
   .run,
   .select,
   .tab,
-  .endin,
+  .vedit input,
   .hud-reset,
   .menu button,
   .linkish {
