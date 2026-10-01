@@ -2,7 +2,7 @@
   import { PRESET_GROUPS, PRESET_NOTE } from '../i18n/ko'
   import type { PresetName } from '../presets/cycles'
   import { sim } from '../store/simulation.svelte'
-  import { shareUrl } from '../share/urlState'
+  import { THEME_KEY, shareUrl } from '../share/urlState'
 
   async function share() {
     const saved = sim.saved
@@ -20,14 +20,39 @@
     }
   }
 
-  function onPreset(e: Event) {
-    const v = (e.currentTarget as HTMLSelectElement).value as PresetName | ''
+  // On a closed select, arrow keys change the value (and fire change) at every step. Loading an
+  // example per keystroke would wipe the drawing while the viewer is only browsing, so keyboard
+  // changes wait for Enter or for focus to leave.
+  let keyed = false
+  let pending: PresetName | '' | null = null
+
+  function apply(v: PresetName | '') {
+    pending = null
+    if (v === sim.preset) return
     if (!v) {
       sim.preset = ''
       return
     }
     sim.loadPreset(v)
     sim.notify(PRESET_NOTE[v])
+  }
+
+  function onPreset(e: Event) {
+    const v = (e.currentTarget as HTMLSelectElement).value as PresetName | ''
+    if (keyed) pending = v
+    else apply(v)
+  }
+
+  function onPresetKey(e: KeyboardEvent) {
+    if (e.key === 'Enter' && pending != null) {
+      e.preventDefault()
+      apply(pending)
+    } else if (e.key !== 'Tab') keyed = true
+  }
+
+  function onPresetBlur() {
+    keyed = false
+    if (pending != null) apply(pending)
   }
 
   function onGas(e: Event) {
@@ -42,6 +67,11 @@
       ? r.dataset.theme === 'dark'
       : matchMedia('(prefers-color-scheme: dark)').matches
     r.dataset.theme = dark ? 'light' : 'dark'
+    try {
+      localStorage.setItem(THEME_KEY, r.dataset.theme)
+    } catch {
+      // Without storage the choice lasts until reload.
+    }
   }
 </script>
 
@@ -78,7 +108,15 @@
   <div class="bar-group">
     <label class="field"
       ><span class="hide-sm">예시</span>
-      <select class="select" aria-label="예시 경로" value={sim.preset} onchange={onPreset}>
+      <select
+        class="select"
+        aria-label="예시 경로"
+        value={sim.preset}
+        onchange={onPreset}
+        onkeydown={onPresetKey}
+        onpointerdown={() => (keyed = false)}
+        onblur={onPresetBlur}
+      >
         <option value="">직접 그리기</option>
         {#each PRESET_GROUPS as g (g.label)}
           <optgroup label={g.label}>
@@ -144,9 +182,9 @@
     >
     <button
       class="btn icon"
-      title="사용 안내"
-      aria-label="사용 안내"
-      onclick={() => (sim.coach = 1)}
+      title="도움말"
+      aria-label="도움말"
+      onclick={() => (sim.help = 'start')}
     >
       <svg width="16" height="16" viewBox="0 0 16 16"
         ><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.4" /><path

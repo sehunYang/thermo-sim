@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { MONATOMIC } from '../../src/physics/gas'
-import { autoClose, closeWith, meetCurve } from '../../src/physics/close'
+import { autoClose, closeWith, hasOverlap, meetCurve } from '../../src/physics/close'
 import { analyzeCycle, isValidPath, resolve, type ProcessPath } from '../../src/physics/path'
 import { state } from '../../src/physics/processes'
 import { buildPreset } from '../../src/presets/cycles'
@@ -118,6 +118,38 @@ describe('autoClose', () => {
       expect(isValidPath(p)).toBe(true)
       landsOnA(p)
     }
+  })
+
+  it('does not turn a drawn expansion into a compression when new segments can close instead', () => {
+    // The teacher's case: adiabat to 29.5 L, then an isotherm out to 45 L.
+    const path: ProcessPath = {
+      gas,
+      start: { V: 10, P: 200 },
+      segments: [
+        { id: 'a', type: 'adiabatic', end: 29.5 },
+        { id: 'b', type: 'isothermal', end: 45 },
+      ],
+      closed: false,
+    }
+    const c = autoClose(path)!
+    expect(['none', 'small']).toContain(c.change)
+    expect(c.overlap).toBe(false)
+    landsOnA(apply(path, c))
+  })
+
+  it('spots a segment running back along an earlier line', () => {
+    const back: ProcessPath = {
+      gas,
+      start: { V: 10, P: 200 },
+      segments: [
+        { id: 'a', type: 'isothermal', end: 30 },
+        { id: 'b', type: 'isochoric', end: 100 },
+        { id: 'c', type: 'isochoric', end: 80 },
+      ],
+      closed: false,
+    }
+    expect(hasOverlap(back)).toBe(true)
+    expect(hasOverlap(carnot)).toBe(false)
   })
 
   it('does nothing on a closed path', () => {

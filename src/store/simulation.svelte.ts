@@ -46,6 +46,8 @@ export class Simulation {
   toast = $state<{ msg: string; id: number } | null>(null)
   /** First-visit guide: 0 hidden, otherwise the 1-based step. */
   coach = $state(0)
+  /** Help dialog: closed, or the open tab. */
+  help = $state<'' | 'start' | 'terms'>('')
 
   #hist = $state<Snapshot[]>([])
   #fut = $state<Snapshot[]>([])
@@ -196,6 +198,7 @@ export class Simulation {
       start: this.start ? { ...this.start } : null,
       segments: this.segments.map((s) => ({ ...s })),
       closed: this.closed,
+      ...(this.preset ? { preset: this.preset } : {}),
     }
   }
   #restore(s: Snapshot) {
@@ -312,6 +315,7 @@ export class Simulation {
       start: { ...this.start },
       segments: this.segments.map(({ type, end }) => ({ type, end })),
       closed: this.closed,
+      ...(this.preset ? { preset: this.preset } : {}),
     }
   }
 
@@ -323,7 +327,7 @@ export class Simulation {
     this.start = { ...saved.start }
     this.segments = saved.segments.map((s) => ({ ...s, id: newId() }))
     this.closed = saved.closed
-    this.preset = ''
+    this.preset = saved.preset ?? ''
     this.play.loop = saved.closed
   }
 

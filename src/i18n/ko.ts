@@ -4,6 +4,8 @@ import type { PresetName } from '../presets/cycles'
 export interface ProcessMeta {
   name: string
   full: string
+  /** What stays fixed (or what cannot pass), in everyday words */
+  plain: string
   key: string
   /** SVG stroke-dasharray, so the four processes differ in shape as well as color */
   dash: string
@@ -15,6 +17,7 @@ export const PROC: Record<ProcessType, ProcessMeta> = {
   isochoric: {
     name: '등적',
     full: '등적 과정',
+    plain: '부피 그대로',
     key: '1',
     dash: '',
     cssVar: '--p-isochoric',
@@ -23,6 +26,7 @@ export const PROC: Record<ProcessType, ProcessMeta> = {
   isobaric: {
     name: '등압',
     full: '등압 과정',
+    plain: '압력 그대로',
     key: '2',
     dash: '10 6',
     cssVar: '--p-isobaric',
@@ -31,6 +35,7 @@ export const PROC: Record<ProcessType, ProcessMeta> = {
   isothermal: {
     name: '등온',
     full: '등온 과정',
+    plain: '온도 그대로',
     key: '3',
     dash: '2 5',
     cssVar: '--p-isothermal',
@@ -39,6 +44,7 @@ export const PROC: Record<ProcessType, ProcessMeta> = {
   adiabatic: {
     name: '단열',
     full: '단열 과정',
+    plain: '열이 못 드나듦',
     key: '4',
     dash: '13 5 2 5',
     cssVar: '--p-adiabatic',

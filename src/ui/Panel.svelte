@@ -46,17 +46,44 @@
     const w = Math.min(50, (Math.abs(v) / lawScale) * 50)
     return { left: v >= 0 ? 50 : 50 - w, w }
   }
+  // Roving focus: ←/→ (and Home/End) move between the tabs, as the ARIA tabs pattern expects.
+  function onTabKey(e: KeyboardEvent) {
+    const ids = tabs.map(([id]) => id)
+    const i = ids.indexOf(sim.tab)
+    const j =
+      e.key === 'ArrowRight'
+        ? (i + 1) % ids.length
+        : e.key === 'ArrowLeft'
+          ? (i + ids.length - 1) % ids.length
+          : e.key === 'Home'
+            ? 0
+            : e.key === 'End'
+              ? ids.length - 1
+              : -1
+    if (j < 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    sim.tab = ids[j]
+    document.getElementById(`tab-${ids[j]}`)?.focus()
+  }
 </script>
 
 <div class="panel">
   <div class="tabs" role="tablist">
     {#each tabs as [id, label] (id)}
-      <button class="tab" role="tab" aria-selected={sim.tab === id} onclick={() => (sim.tab = id)}
-        >{label}</button
+      <button
+        class="tab"
+        role="tab"
+        id="tab-{id}"
+        aria-controls="tabpanel"
+        aria-selected={sim.tab === id}
+        tabindex={sim.tab === id ? 0 : -1}
+        onclick={() => (sim.tab = id)}
+        onkeydown={onTabKey}>{label}</button
       >
     {/each}
   </div>
-  <div class="tabpanel" role="tabpanel">
+  <div class="tabpanel" role="tabpanel" id="tabpanel" aria-labelledby="tab-{sim.tab}">
     {#if sim.tab === 'table'}
       {#if !n}
         <div class="empty">구간을 그리면 여기에 구간별 에너지가 쌓여요.</div>
@@ -79,7 +106,7 @@
                   <td><b>{LETTERS[i]}→{toLabel(i)}</b></td>
                   <td
                     ><span class="pchip"
-                      ><Swatch type={r.segment.type} width={18} />{PROC[r.segment.type].name}</span
+                      ><Swatch type={r.segment.type} width={28} />{PROC[r.segment.type].name}</span
                     ></td
                   >
                   <td class="num">{f1(r.a.V)}→{f1(r.b.V)}</td>
