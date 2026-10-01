@@ -7,6 +7,6 @@ export default defineConfig({
   base: '/thermo-sim/',
   plugins: [svelte()],
   test: {
-    include: ['tests/unit/**/*.test.ts'],
+    include: ['tests/physics/**/*.test.ts'],
   },
 })
