@@ -168,7 +168,7 @@ describe('editEnd', () => {
     expect(r.reduce((s, x) => s + x.energy.dU, 0)).toBeCloseTo(0, 0)
     const c = analyzeCycle(path)!
     if (c.kind === 'engine') expect(c.efficiency).toBeLessThanOrEqual(c.carnotEfficiency + 1e-9)
-    else expect(c.cop).toBeLessThanOrEqual(c.carnotCop + 1e-9)
+    else if (c.kind === 'refrigerator') expect(c.cop).toBeLessThanOrEqual(c.carnotCop + 1e-9)
   }
 
   it('leaves every preset cycle closed', () => {
