@@ -3,6 +3,7 @@
   import { STORAGE_KEY, decode, encode, readHash } from './share/urlState'
   import { sim } from './store/simulation.svelte'
   import AppBar from './ui/AppBar.svelte'
+  import Coach from './ui/Coach.svelte'
   import EngineView from './ui/EngineView.svelte'
   import Panel from './ui/Panel.svelte'
   import Playbar from './ui/Playbar.svelte'
@@ -35,6 +36,17 @@
   }
   restore()
 
+  // Show the three-step guide once, on the first visit.
+  const SEEN_KEY = 'thermo-sim:coach-seen'
+  try {
+    if (!localStorage.getItem(SEEN_KEY)) {
+      sim.coach = 1
+      localStorage.setItem(SEEN_KEY, '1')
+    }
+  } catch {
+    // Without storage, skip the automatic guide; the help button still opens it.
+  }
+
   $effect(() => {
     const saved = sim.saved
     try {
@@ -47,13 +59,17 @@
 
   function onKey(e: KeyboardEvent) {
     const target = e.target as HTMLElement
-    if (target.matches('input,select,textarea')) return
+    if (target.matches('input,select,textarea') || sim.coach) return
     const mod = e.ctrlKey || e.metaKey
     if (!mod && keyTools[e.key]) sim.tool = keyTools[e.key]
     // A focused button already reacts to Space itself.
     else if (e.code === 'Space' && !target.matches('button')) {
       e.preventDefault()
       sim.togglePlay()
+    } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      if (target.matches('[role="tab"]')) return
+      e.preventDefault()
+      sim.step(e.key === 'ArrowRight' ? 1 : -1)
     } else if (mod && e.key.toLowerCase() === 'z') {
       e.preventDefault()
       if (e.shiftKey) sim.redo()
@@ -79,4 +95,5 @@
   <Playbar />
   <Panel />
   <Toast />
+  <Coach />
 </div>

@@ -12,6 +12,7 @@ const HSPAN = 2.9
 const RES_X = 2.3
 const PMAX = LIMITS.Pmax
 const hOfV = (V: number) => HMIN + (V / LIMITS.Vmax) * HSPAN
+const clampZoom = (z: number) => Math.max(0.6, Math.min(1.6, z))
 // Lights were tuned with three's legacy (non-physical) intensities; π restores that brightness.
 const LIGHT = Math.PI
 
@@ -190,24 +191,57 @@ export class Engine {
     this.camera.updateProjectionMatrix()
   }
 
+  /** Extra zoom on top of the aspect-dependent distance, limited so the engine stays in view. */
+  private zoom = 1
+
+  /** Back to the default oblique view from slightly above. */
+  resetView() {
+    this.yaw = 0.18
+    this.pitch = 0.3
+    this.zoom = 1
+  }
+
+  /** Drag to orbit (one pointer), pinch or wheel to zoom, double-click to reset. */
   private bindOrbit(el: HTMLCanvasElement) {
-    let drag: { x: number; y: number } | null = null
+    const pts = new Map<number, { x: number; y: number }>()
+    let pinch = 0
+    const spread = () => {
+      const [a, b] = [...pts.values()]
+      return Math.hypot(a.x - b.x, a.y - b.y)
+    }
     el.addEventListener('pointerdown', (e) => {
-      drag = { x: e.clientX, y: e.clientY }
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY })
       el.setPointerCapture(e.pointerId)
+      if (pts.size === 2) pinch = spread()
     })
     el.addEventListener('pointermove', (e) => {
-      if (!drag) return
-      this.yaw -= (e.clientX - drag.x) * 0.008
-      this.pitch = Math.max(0.05, Math.min(1.1, this.pitch + (e.clientY - drag.y) * 0.006))
-      drag = { x: e.clientX, y: e.clientY }
+      const prev = pts.get(e.pointerId)
+      if (!prev) return
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      if (pts.size === 2) {
+        const d = spread()
+        if (pinch) this.zoom = clampZoom(this.zoom * (pinch / d))
+        pinch = d
+        return
+      }
+      this.yaw -= (e.clientX - prev.x) * 0.008
+      this.pitch = Math.max(0.05, Math.min(1.1, this.pitch + (e.clientY - prev.y) * 0.006))
     })
-    el.addEventListener('pointerup', () => (drag = null))
-    el.addEventListener('pointercancel', () => (drag = null))
-    el.addEventListener('dblclick', () => {
-      this.yaw = 0.18
-      this.pitch = 0.3
-    })
+    const up = (e: PointerEvent) => {
+      pts.delete(e.pointerId)
+      pinch = 0
+    }
+    el.addEventListener('pointerup', up)
+    el.addEventListener('pointercancel', up)
+    el.addEventListener(
+      'wheel',
+      (e) => {
+        e.preventDefault()
+        this.zoom = clampZoom(this.zoom * Math.exp(e.deltaY * 0.001))
+      },
+      { passive: false },
+    )
+    el.addEventListener('dblclick', () => this.resetView())
   }
 
   private build() {
@@ -716,9 +750,9 @@ export class Engine {
     const c = this.camera
     const tgt = new THREE.Vector3(0, 0.95, 0)
     c.position.set(
-      tgt.x + this.dist * Math.cos(this.pitch) * Math.sin(this.yaw),
-      tgt.y + this.dist * Math.sin(this.pitch),
-      tgt.z + this.dist * Math.cos(this.pitch) * Math.cos(this.yaw),
+      tgt.x + this.dist * this.zoom * Math.cos(this.pitch) * Math.sin(this.yaw),
+      tgt.y + this.dist * this.zoom * Math.sin(this.pitch),
+      tgt.z + this.dist * this.zoom * Math.cos(this.pitch) * Math.cos(this.yaw),
     )
     c.lookAt(tgt)
     this.renderer.render(this.scene, c)

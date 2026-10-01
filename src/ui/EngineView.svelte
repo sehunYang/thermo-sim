@@ -12,6 +12,7 @@
   let hist = $state<HTMLCanvasElement>()
   let failed = $state(false)
   let Pext = $state<number | null>(null)
+  let resetView = $state<() => void>(() => {})
 
   const v = $derived(sim.view)
   const pr = $derived(PROC[v.type])
@@ -113,6 +114,12 @@
       failed = true
     }
     const engine = created
+    // Skip drawing while the 3D pane is scrolled out of view (phones); playback keeps ticking.
+    // requestAnimationFrame itself stops while the tab is hidden.
+    let onScreen = true
+    const io = new IntersectionObserver(([e]) => (onScreen = e.isIntersecting))
+    io.observe(host)
+    resetView = () => engine?.resetView()
     let raf = 0
     let last = performance.now()
     let frame = 0
@@ -120,7 +127,7 @@
       const dt = Math.min(0.05, (now - last) / 1000)
       last = now
       sim.tick(dt)
-      if (engine) {
+      if (engine && onScreen) {
         engine.frame(dt, {
           view: sim.view,
           fridge: sim.fridge,
@@ -135,6 +142,7 @@
     raf = requestAnimationFrame(loop)
     return () => {
       cancelAnimationFrame(raf)
+      io.disconnect()
       engine?.dispose()
     }
   })
@@ -207,6 +215,10 @@
           <div class="axis">
             <span>느림</span><span>입자 색 = 그 입자의 속력</span><span>빠름</span>
           </div>
+        </div>
+        <div class="hud-hint">
+          끌어서 회전 · 휠로 확대
+          <button class="hud-reset" onclick={() => resetView()}>시점 초기화</button>
         </div>
       </div>
     {/if}

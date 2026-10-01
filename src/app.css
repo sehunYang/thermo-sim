@@ -1037,3 +1037,49 @@ tr.current td {
 .readout.flip {
   transform: translate(calc(-100% - 12px), -120%);
 }
+.hud-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hud-reset {
+  pointer-events: auto;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(18, 26, 35, 0.82);
+  color: #c9d4df;
+  border-radius: 7px;
+  padding: 3px 8px;
+  font-size: 11px;
+}
+/* Fingers need bigger targets than a mouse: at least 44 px on touch screens. */
+@media (pointer: coarse) {
+  .btn,
+  .tool,
+  .run,
+  .select,
+  .tab {
+    min-height: 44px;
+  }
+  .btn.icon {
+    min-width: 44px;
+    justify-content: center;
+  }
+  .scrub input {
+    height: 44px;
+  }
+}
+@container app (max-width: 540px) {
+  .hud-hint {
+    display: none;
+  }
+}
+/* The guide's card must sit above the highlighted target (z-index 21) even when the stacked
+   tablet and phone layouts put that target under the card: the dim layer stays below the target,
+   the card above it. */
+.coach {
+  z-index: auto;
+}
+.coach-card {
+  position: relative;
+  z-index: 23;
+}
