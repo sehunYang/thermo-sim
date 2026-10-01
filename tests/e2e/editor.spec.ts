@@ -5,6 +5,8 @@ async function clickAt(page: Page, V: number, P: number) {
   const pt = await page.evaluate(
     ([V, P]) => {
       const svg = document.querySelector<SVGSVGElement>('svg[aria-label="압력-부피 그래프"]')!
+      // On phones the playbar sticks to the bottom; keep the graph clear of it.
+      svg.scrollIntoView({ block: 'center' })
       const G = { L: 58, R: 18, T: 16, B: 46, W: 560, H: 440 }
       const PW = G.W - G.L - G.R
       const PH = G.H - G.T - G.B

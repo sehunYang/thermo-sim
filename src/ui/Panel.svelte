@@ -2,6 +2,8 @@
   import { LETTERS, PRESET_NOTE, PROC, f0, f1, fmtE } from '../i18n/ko'
   import { sim, type PanelTab } from '../store/simulation.svelte'
   import Swatch from './Swatch.svelte'
+  import { energy } from '../physics/processes'
+  import { stateAt } from '../physics/path'
 
   const tabs: [PanelTab, string][] = [
     ['table', '구간과 에너지'],
@@ -25,8 +27,15 @@
     }
   }
 
-  // The law tab shows the last segment until playback (M4) drives it.
-  const law = $derived(n ? { i: n - 1, r: sim.resolved[n - 1] } : null)
+  // The law tab follows the playhead; without one it shows the last segment in full.
+  const cur = $derived(sim.play.active ? sim.play.seg : -1)
+  const law = $derived.by(() => {
+    if (!n) return null
+    const i = sim.play.active ? Math.min(sim.play.seg, n - 1) : n - 1
+    const r = sim.resolved[i]
+    const s = sim.play.active ? sim.play.s : 1
+    return { i, r, e: energy(sim.gas, r.segment.type, r.a, stateAt(sim.gas, r, s)) }
+  })
   const lawScale = $derived(
     law
       ? Math.max(1, Math.abs(law.r.energy.Q), Math.abs(law.r.energy.dU), Math.abs(law.r.energy.W))
@@ -69,7 +78,7 @@
                 {@const iso = r.segment.type === 'isochoric'}
                 {@const lock = sim.closed && i === n - 1}
                 {@const e = r.energy}
-                <tr>
+                <tr class:current={i === cur}>
                   <td><b>{LETTERS[i]}→{toLabel(i)}</b></td>
                   <td
                     ><span class="pchip"
@@ -114,7 +123,7 @@
             </div>
           </div>
         {:else}
-          {@const e = law.r.energy}
+          {@const e = law.e}
           {@const pr = PROC[law.r.segment.type]}
           <div class="law-eq">
             <b style="color:var(--ink)">{LETTERS[law.i]}→{toLabel(law.i)} {pr.full}</b> · {pr.law}

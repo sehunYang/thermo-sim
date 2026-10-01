@@ -1,7 +1,7 @@
 <script lang="ts">
   import { R, temperature } from '../physics/gas'
   import { LIMITS } from '../physics/path'
-  import { stateBetween } from '../physics/processes'
+  import { energy, stateBetween } from '../physics/processes'
   import {
     G,
     PH,
@@ -20,6 +20,7 @@
     xV,
     yP,
     type Ghost,
+    type Pt,
   } from '../graph/geometry'
   import { LETTERS, PROC, f0, f1 } from '../i18n/ko'
   import { sim } from '../store/simulation.svelte'
@@ -48,8 +49,38 @@
     return `translate(${xV(m.V).toFixed(1)} ${yP(m.P).toFixed(1)}) rotate(${ang.toFixed(1)})`
   }
 
+  const P = $derived(sim.play)
+  const cur = $derived(P.active && sim.resolved.length ? P.seg : -1)
   const cycleArea = $derived(
-    sim.closed && sim.tab === 'cycle' ? pathD(sim.resolved.flatMap(segPts)) + 'z' : '',
+    sim.closed && (sim.tab === 'cycle' || (P.done && !P.playing))
+      ? pathD(sim.resolved.flatMap(segPts)) + 'z'
+      : '',
+  )
+  // Area under the current segment so far (the work done so far), coloured by its sign.
+  const workArea = $derived.by(() => {
+    if (cur < 0 || P.done) return null
+    const r = sim.resolved[cur]
+    if (r.segment.type === 'isochoric' || P.s <= 0.001) return null
+    const pts = sampleSegment(sim.gas, r.segment.type, r.a, r.b, 0, P.s, 40)
+    const W = energy(
+      sim.gas,
+      r.segment.type,
+      r.a,
+      stateBetween(sim.gas, r.segment.type, r.a, r.b, P.s),
+    ).W
+    const poly: Pt[] = [...pts, [pts[pts.length - 1][0], G.T + PH], [pts[0][0], G.T + PH]]
+    return { d: pathD(poly) + 'z', col: W >= 0 ? 'var(--work-pos)' : 'var(--work-neg)' }
+  })
+  const marker = $derived(
+    cur >= 0
+      ? stateBetween(
+          sim.gas,
+          sim.resolved[cur].segment.type,
+          sim.resolved[cur].a,
+          sim.resolved[cur].b,
+          P.s,
+        )
+      : null,
   )
 
   const vertices = $derived.by(() => {
@@ -64,6 +95,13 @@
   })
 
   const status = $derived.by(() => {
+    if (P.active && P.done)
+      return sim.closed ? '한 바퀴 완료 · 파란 영역이 알짜 일이에요' : '재생 완료'
+    if (cur >= 0) {
+      const r = sim.resolved[cur]
+      const to = sim.closed && cur === sim.resolved.length - 1 ? 'A' : LETTERS[cur + 1]
+      return `${LETTERS[cur]}→${to} ${PROC[r.segment.type].full} 재생 중`
+    }
     if (!sim.start) return '그래프를 눌러 시작 상태 A를 찍으세요'
     if (sim.closed) return '순환이 닫혔어요 · 실행을 눌러 보세요'
     if (ghost && !ghost.valid) return ghost.why || '범위를 벗어났어요'
@@ -87,7 +125,7 @@
 
   function ghostAt(px: number, py: number, snapOff: boolean): Ghost | null {
     const a = sim.lastState
-    if (!sim.start || sim.closed || !a) return null
+    if (!sim.start || sim.closed || !a || sim.play.active) return null
     return computeGhost({
       gas: sim.gas,
       tool: sim.tool,
@@ -126,6 +164,8 @@
   }
 
   function onDown(e: PointerEvent) {
+    // Touching the graph leaves playback and goes back to editing.
+    if (sim.play.active) sim.stopPlay()
     dragging = true
     svg.setPointerCapture(e.pointerId)
     const p = svgPoint(e)
@@ -270,17 +310,33 @@
       <path d={cycleArea} fill="var(--accent)" fill-opacity=".14" stroke="none" />
     {/if}
 
-    {#each sim.resolved as r (r.segment.id)}
+    {#if workArea}
+      <path d={workArea.d} fill={workArea.col} fill-opacity=".2" stroke="none" />
+    {/if}
+
+    {#each sim.resolved as r, i (r.segment.id)}
       {@const pr = PROC[r.segment.type]}
-      <path
-        d={pathD(segPts(r))}
-        fill="none"
-        stroke="var({pr.cssVar})"
-        stroke-width="3"
-        stroke-dasharray={pr.dash}
-        stroke-linecap="round"
-      />
-      <path d="M-6,-5 L6,0 L-6,5 z" fill="var({pr.cssVar})" transform={arrow(r, 0.55)} />
+      <g opacity={cur >= 0 && i > cur ? 0.3 : 1}>
+        <path
+          d={pathD(segPts(r))}
+          fill="none"
+          stroke="var({pr.cssVar})"
+          stroke-width={i === cur ? 5 : 3}
+          stroke-dasharray={pr.dash}
+          stroke-linecap="round"
+        />
+        {#if i === cur}
+          <path
+            d={pathD(sampleSegment(sim.gas, r.segment.type, r.a, r.b, 0, P.s, 40))}
+            fill="none"
+            stroke="var({pr.cssVar})"
+            stroke-width="7"
+            stroke-linecap="round"
+            opacity=".35"
+          />
+        {/if}
+        <path d="M-6,-5 L6,0 L-6,5 z" fill="var({pr.cssVar})" transform={arrow(r, 0.55)} />
+      </g>
     {/each}
 
     {#if ghost}
@@ -336,7 +392,19 @@
       >
     {/each}
 
-    {#if hover}
+    {#if marker}
+      <circle cx={xV(marker.V)} cy={yP(marker.P)} r="11" fill="var(--accent)" fill-opacity=".2" />
+      <circle
+        cx={xV(marker.V)}
+        cy={yP(marker.P)}
+        r="6"
+        fill="var(--accent)"
+        stroke="var(--surface)"
+        stroke-width="2"
+      />
+    {/if}
+
+    {#if hover && !P.playing}
       <line
         x1={xV(hover.V)}
         x2={xV(hover.V)}

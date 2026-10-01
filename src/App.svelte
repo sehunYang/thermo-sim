@@ -4,6 +4,7 @@
   import AppBar from './ui/AppBar.svelte'
   import EngineView from './ui/EngineView.svelte'
   import Panel from './ui/Panel.svelte'
+  import Playbar from './ui/Playbar.svelte'
   import PVGraph from './ui/PVGraph.svelte'
   import Toast from './ui/Toast.svelte'
   import Toolbar from './ui/Toolbar.svelte'
@@ -16,10 +17,15 @@
   }
 
   function onKey(e: KeyboardEvent) {
-    if ((e.target as HTMLElement).matches('input,select,textarea')) return
+    const target = e.target as HTMLElement
+    if (target.matches('input,select,textarea')) return
     const mod = e.ctrlKey || e.metaKey
     if (!mod && keyTools[e.key]) sim.tool = keyTools[e.key]
-    else if (mod && e.key.toLowerCase() === 'z') {
+    // A focused button already reacts to Space itself.
+    else if (e.code === 'Space' && !target.matches('button')) {
+      e.preventDefault()
+      sim.togglePlay()
+    } else if (mod && e.key.toLowerCase() === 'z') {
       e.preventDefault()
       if (e.shiftKey) sim.redo()
       else sim.undo()
@@ -41,6 +47,7 @@
     </section>
     <EngineView />
   </div>
+  <Playbar />
   <Panel />
   <Toast />
 </div>
