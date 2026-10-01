@@ -73,4 +73,35 @@ describe('ghost segment', () => {
     const g = ghost({ a: state(gas, 150, 20), segmentCount: 1, px: xV(10), py: yP(300) })
     expect(g.closing).toBe(false)
   })
+
+  describe('when the closing curve just misses A', () => {
+    // A (10 L, 300 kPa) → isochoric to 150 kPa → isobaric to 21 L. The isotherm through A
+    // crosses 150 kPa at 20 L, so C sits 1 L off it.
+    const path = {
+      gas,
+      start: { P: 300, V: 10 },
+      segments: [
+        { id: 'a', type: 'isochoric' as const, end: 150 },
+        { id: 'b', type: 'isobaric' as const, end: 21 },
+      ],
+      closed: false,
+    }
+    const near = { a: state(gas, 150, 21), segmentCount: 2, path, px: xV(10.3), py: yP(295) }
+
+    it('nudges the last state along its own segment and snaps onto A', () => {
+      const g = ghost(near)
+      expect(g.closing).toBe(true)
+      expect(g.valid).toBe(true)
+      expect(g.adjust).toBeCloseTo(20, 6)
+      expect(g.a.V).toBeCloseTo(20, 6)
+      expect(g.prev?.b.V).toBeCloseTo(20, 6)
+      expect(g.b).toMatchObject({ V: 10, P: 300 })
+    })
+
+    it('does not snap with snapping turned off or when the miss is large', () => {
+      expect(ghost({ ...near, snapOff: true }).closing).toBe(false)
+      const far = { ...path, segments: [path.segments[0], { ...path.segments[1], end: 35 }] }
+      expect(ghost({ ...near, a: state(gas, 150, 35), path: far }).closing).toBe(false)
+    })
+  })
 })

@@ -69,3 +69,29 @@ test('presets load and show the cycle analysis', async ({ page }) => {
   await page.getByRole('tab', { name: '순환 분석' }).click()
   await expect(page.getByText('3.00').first()).toBeVisible()
 })
+
+test('auto-complete closes an open path back onto A', async ({ page }) => {
+  await page.goto('./')
+  await clickAt(page, 10, 300)
+  await page.keyboard.press('2')
+  await clickAt(page, 30, 300)
+  await page.getByRole('button', { name: '자동 완성' }).click()
+  await expect(page.getByText('순환이 닫혔어요 · 실행을 눌러 보세요')).toBeVisible()
+  await expect(page.locator('tbody tr')).toHaveCount(3)
+  await expect(page.getByRole('button', { name: '자동 완성' })).toBeDisabled()
+})
+
+test('a closing segment that just misses A snaps onto it', async ({ page }) => {
+  await page.goto('./')
+  await clickAt(page, 10, 300)
+  await page.keyboard.press('1')
+  await clickAt(page, 10, 150)
+  await page.keyboard.press('2')
+  // The isotherm through A crosses 150 kPa at 20 L, so C is 1 L off.
+  await clickAt(page, 21, 150)
+  await page.keyboard.press('3')
+  await clickAt(page, 10.3, 296)
+  await expect(page.getByText('순환이 닫혔어요 · 실행을 눌러 보세요')).toBeVisible()
+  await expect(page.locator('tbody tr')).toHaveCount(3)
+  await expect(page.locator('tbody tr').nth(1).locator('td').nth(2)).toHaveText('10.0→20.0')
+})

@@ -105,7 +105,10 @@
     if (!sim.start) return '그래프를 눌러 시작 상태 A를 찍으세요'
     if (sim.closed) return '순환이 닫혔어요 · 실행을 눌러 보세요'
     if (ghost && !ghost.valid) return ghost.why || '범위를 벗어났어요'
-    if (ghost?.closing) return '놓으면 A로 돌아와 순환이 닫혀요'
+    if (ghost?.closing)
+      return ghost.adjust != null
+        ? '놓으면 앞 상태를 살짝 맞춰 A에 닫아요'
+        : '놓으면 A로 돌아와 순환이 닫혀요'
     return `${PROC[sim.tool].name} 도구 · 끌거나 눌러서 다음 상태를 정하세요`
   })
 
@@ -137,6 +140,7 @@
       px,
       py,
       snapOff,
+      path: sim.path,
     })
   }
 
@@ -191,8 +195,13 @@
       sim.notify(gh.why || '이 위치로는 그릴 수 없어요')
       return
     }
-    sim.addSegment(gh.type, gh.end, gh.closing)
-    if (gh.closing) sim.notify('순환이 닫혔어요')
+    sim.addSegment(gh.type, gh.end, gh.closing, gh.adjust)
+    if (gh.closing)
+      sim.notify(
+        gh.adjust != null
+          ? `순환이 닫혔어요 · ${LETTERS[sim.segments.length - 1]} 위치를 살짝 맞춰 A에 붙였어요`
+          : '순환이 닫혔어요',
+      )
     ghost = null
     if (e.pointerType !== 'mouse') {
       hover = null
@@ -339,6 +348,27 @@
       </g>
     {/each}
 
+    {#if ghost?.prev}
+      {@const pp = PROC[ghost.prev.type]}
+      <path
+        d={pathD(sampleSegment(sim.gas, ghost.prev.type, ghost.prev.a, ghost.prev.b))}
+        fill="none"
+        stroke="var({pp.cssVar})"
+        stroke-width="3"
+        stroke-dasharray={pp.dash || '1 0'}
+        stroke-linecap="round"
+        opacity=".55"
+      />
+      <circle
+        cx={xV(ghost.prev.b.V)}
+        cy={yP(ghost.prev.b.P)}
+        r="5"
+        fill="var(--accent)"
+        fill-opacity=".3"
+        stroke="var(--accent)"
+        stroke-width="1.5"
+      />
+    {/if}
     {#if ghost}
       {@const pr = PROC[ghost.type]}
       {@const col = ghost.valid ? `var(${pr.cssVar})` : 'var(--danger)'}
