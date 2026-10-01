@@ -15,7 +15,7 @@
   )
 </script>
 
-<div class="playbar">
+<div class="playbar" class:stick={sim.closed || P.active}>
   <button class="btn icon" title="처음으로" aria-label="처음으로" onclick={() => sim.rewind()}>
     <svg width="16" height="16" viewBox="0 0 16 16"
       ><path
