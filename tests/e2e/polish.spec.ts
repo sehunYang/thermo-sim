@@ -73,6 +73,8 @@ test('a cycle can be drawn, played and inspected with the keyboard alone', async
   await page.keyboard.press('Enter')
   await expect(page.getByRole('menuitemcheckbox', { name: /보조선/ })).toBeFocused()
   await page.keyboard.press('ArrowDown')
+  await expect(page.getByRole('menuitemcheckbox', { name: /반복 재생/ })).toBeFocused()
+  await page.keyboard.press('ArrowDown')
   await page.keyboard.press('Enter')
   await expect(page.locator('.toast')).toContainText('링크')
 })

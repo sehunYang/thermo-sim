@@ -15,6 +15,9 @@ const clampZoom = (z: number) => Math.max(0.6, Math.min(1.6, z))
 // Lights were tuned with three's legacy (non-physical) intensities; π restores that brightness.
 const LIGHT = Math.PI
 
+/** One light ink for scene labels; only the reservoirs keep their hot and cold colours. */
+const INK = '#E2E9F0'
+
 type Label = THREE.Sprite & { setText: (l1: string, l2: string, col: string) => void }
 
 function makeLabel(): Label {
@@ -40,7 +43,7 @@ function makeLabel(): Label {
     x.fillStyle = col
     x.fillText(l1, 256, 66)
     if (l2) {
-      x.font = '500 42px "IBM Plex Sans KR",sans-serif'
+      x.font = '500 50px "IBM Plex Sans KR",sans-serif'
       x.fillStyle = '#C9D4DF'
       x.fillText(l2, 256, 132)
     }
@@ -153,7 +156,6 @@ export class Engine {
   private inst!: THREE.InstancedMesh
   private colL!: THREE.Mesh
   private colR!: THREE.Mesh
-  private labDh!: Label
   private dhLine!: THREE.Mesh
   private readonly MANO = { MX1: 1.22, MX2: 1.56, MZ: 0.95, MYB: 0.55, MYT: 2.55 }
   private pos = new Float32Array(NP * 3)
@@ -194,6 +196,13 @@ export class Engine {
     // Narrower views pull back a little so the U-tube labels keep clear of the frame.
     this.dist = a < 1.1 ? 12.5 : 9 + Math.max(0, Math.min(0.6, 1.9 - a)) * 2.5
     this.camera.updateProjectionMatrix()
+    // Small views draw the labels larger so their second line stays readable on a phone.
+    const f = Math.max(1, Math.min(1.6, 640 / w))
+    this.scene.traverse((o) => {
+      if (!(o instanceof THREE.Sprite)) return
+      o.userData.base ??= o.scale.clone()
+      o.scale.copy(o.userData.base).multiplyScalar(f)
+    })
   }
 
   /** Extra zoom on top of the aspect-dependent distance, limited so the engine stays in view. */
@@ -204,7 +213,11 @@ export class Engine {
     this.yaw = 0.18
     this.pitch = 0.3
     this.zoom = 1
+    this.onView?.(false)
   }
+
+  /** Told whether the view has left its default, so a reset button appears only when useful. */
+  onView?: (moved: boolean) => void
 
   /** Drag to orbit (one pointer), pinch or wheel to zoom, double-click to reset. */
   private bindOrbit(el: HTMLCanvasElement) {
@@ -226,11 +239,13 @@ export class Engine {
       if (pts.size === 2) {
         const d = spread()
         if (pinch) this.zoom = clampZoom(this.zoom * (pinch / d))
+        this.onView?.(true)
         pinch = d
         return
       }
       this.yaw -= (e.clientX - prev.x) * 0.008
       this.pitch = Math.max(0.05, Math.min(1.1, this.pitch + (e.clientY - prev.y) * 0.006))
+      this.onView?.(true)
     })
     const up = (e: PointerEvent) => {
       pts.delete(e.pointerId)
@@ -243,6 +258,7 @@ export class Engine {
       (e) => {
         e.preventDefault()
         this.zoom = clampZoom(this.zoom * Math.exp(e.deltaY * 0.001))
+        this.onView?.(true)
       },
       { passive: false },
     )
@@ -594,18 +610,14 @@ export class Engine {
     const labGas = makeLabel()
     labGas.scale.set(1.9, 0.63, 1)
     labGas.position.set(MX1 - 0.1, 3.02, MZ)
-    labGas.setText('기체 쪽', '', '#9FD4FF')
+    labGas.setText('기체 쪽', '', INK)
     mano.add(labGas)
     const labOut = makeLabel()
     // The drawing exaggerates the level difference; the note stays on screen with the tube.
     labOut.scale.set(1.9, 0.63, 1)
     labOut.position.set(MX2 + 0.3, MYT + 0.16, MZ)
-    labOut.setText('바깥 쪽', 'Δh 크게 그림', '#E8C070')
+    labOut.setText('바깥 쪽', 'Δh 크게 그림', INK)
     mano.add(labOut)
-    this.labDh = makeLabel()
-    this.labDh.scale.set(1.2, 0.4, 1)
-    this.labDh.setText('Δh', '', '#FFD08A')
-    mano.add(this.labDh)
     this.dhLine = new THREE.Mesh(
       new THREE.BoxGeometry(0.03, 1, 0.03).translate(0, 0.5, 0),
       new THREE.MeshBasicMaterial({ color: 0xffd08a }),
@@ -700,8 +712,6 @@ export class Engine {
       this.dhLine.visible = Math.abs(hr - hl) > 0.05
       this.dhLine.position.set(xm, Math.min(yl, yr), M.MZ)
       this.dhLine.scale.y = Math.abs(yr - yl) || 0.001
-      this.labDh.visible = this.dhLine.visible
-      this.labDh.position.set(xm + 0.2, (yl + yr) / 2, M.MZ)
     }
 
     // Heat: which reservoir, which way, how strong.

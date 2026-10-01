@@ -19,8 +19,8 @@
   --p-adiabatic: #c73d66;
   /* Colour has one meaning each. Primaries appear only for: the four processes (lines, swatches,
      tools), heat (orange, whichever way it flows), particle speed (blue → red), the reservoirs
-     (hot red, cold blue) and the accent (buttons, focus, playhead). Numbers stay in ink. */
-  --heat: #e8822a;
+     (hot red, cold blue) and the accent (buttons, focus). The playhead is ink. Numbers stay in ink. */
+  --heat: #c8640f;
   --graph-bg: #fbfcfd;
   --grid: #e6ebf0;
   --guide: #b9c4cf;
@@ -118,6 +118,10 @@ button {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+body {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 .num {
   font-family: var(--mono);
@@ -301,8 +305,10 @@ button {
 .tool:hover {
   background: var(--surface-2);
 }
+/* The chosen process: a tint, and its colour in full strength as an underline. */
 .tool[aria-pressed='true'] {
   background: color-mix(in srgb, var(--tc) 14%, var(--surface));
+  box-shadow: inset 0 -3px 0 var(--tc);
 }
 .tools .btn {
   white-space: nowrap;
@@ -461,7 +467,7 @@ button {
   padding: 0;
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px 14px;
   counter-reset: w;
 }
@@ -678,8 +684,21 @@ td.st {
 .vedit.flip {
   transform: translate(-50%, calc(-100% - 14px));
 }
+.graph .vertex {
+  cursor: pointer;
+}
+.graph .vertex .vdot {
+  transition: r 0.12s;
+}
+/* A vertex that can be changed answers the pointer by growing; A cannot, and stays a ring. */
+.graph .vertex:hover .vdot,
+.graph .vertex:focus-visible .vdot {
+  r: 7.5;
+}
 .graph .vertex:focus-visible {
   outline: none;
+}
+.graph .vertex:focus-visible .vdot {
   stroke: var(--accent);
   stroke-width: 3;
 }
@@ -763,7 +782,6 @@ td.st {
 }
 .bartrack i.w {
   background: var(--muted);
-  opacity: 0.55;
 }
 /* Cycle analysis: the limit comparison leads; totals are plain type, no boxes. */
 /* One grid for both rows so the two bars start at the same x and compare by length alone. */
@@ -983,6 +1001,13 @@ td.st {
   .engine-pane {
     height: 270px;
   }
+  .why ol {
+    grid-template-columns: 1fr;
+  }
+  .why ol,
+  .why-empty {
+    mask-image: none;
+  }
   .graph {
     height: 330px;
   }
@@ -1030,15 +1055,13 @@ td.st {
     border-top: 1px solid var(--line-soft);
     height: 104px;
   }
-  /* Sticky only once there is something to play: while drawing it would cover the graph. */
+  /* Sticky only once there is something to play: it follows the reader down past the graph to
+     the scene and the table, so pause is always at hand. */
   .playbar.stick {
     position: sticky;
   }
-  .app:has(.playbar.stick) .toast {
-    bottom: 128px;
-  }
   .playbar {
-    bottom: 0;
+    top: 0;
     z-index: 5;
     padding: 8px 10px;
     gap: 8px;
@@ -1115,9 +1138,6 @@ td.st {
   .vedit input,
   .hud-reset,
   .menu button,
-  .linkish {
-    min-height: 44px;
-  }
   .btn.icon {
     min-width: 44px;
     justify-content: center;
@@ -1146,12 +1166,6 @@ td.st {
   z-index: 23;
 }
 
-/* The loop toggle is on by default; its pressed state is the icon colour, not a filled box. */
-.btn.loop[aria-pressed='true'] {
-  background: transparent;
-  color: var(--accent);
-}
-
 /* Empty graph: the one thing to do, centred and readable. */
 .graph-empty {
   position: absolute;
@@ -1168,16 +1182,28 @@ td.st {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
+  background: var(--graph-bg);
+  padding: 4px 10px;
+  border-radius: 6px;
 }
-.linkish {
-  pointer-events: auto;
-  border: 0;
-  background: none;
-  color: var(--accent);
-  font-size: 14px;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  padding: 6px;
+
+/* Narrow 3D column (tablets): three columns would wrap every few words, so the steps run on
+   as one paragraph with their numbers inline. */
+@container app (min-width: 541px) and (max-width: 1100px) {
+  .why ol {
+    display: block;
+  }
+  .why li {
+    display: inline;
+  }
+  .why li::before {
+    display: inline-grid;
+    vertical-align: 1px;
+    margin: 0 4px 0 6px;
+  }
+  .why li:first-child::before {
+    margin-left: 0;
+  }
 }
 
 /* Projector and large monitors: everything a quarter larger, so the back row can read it. */

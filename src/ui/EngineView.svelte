@@ -11,6 +11,8 @@
   let hist = $state<HTMLCanvasElement>()
   let failed = $state(false)
   let resetView = $state<() => void>(() => {})
+  // The reset button only appears once the view has been turned or zoomed.
+  let moved = $state(false)
 
   const v = $derived(sim.view)
   /** The gas state in one quiet line: the same numbers the table shows at segment ends. */
@@ -96,6 +98,7 @@
     const io = new IntersectionObserver(([e]) => (onScreen = e.isIntersecting))
     io.observe(host)
     resetView = () => engine?.resetView()
+    if (engine) engine.onView = (m) => (moved = m)
     let raf = 0
     let last = performance.now()
     let frame = 0
@@ -135,23 +138,25 @@
         {#if !v.empty}
           <output class="hud-state" aria-label="지금 기체 상태">{gasLine}</output>
         {/if}
-        <button
-          class="hud-reset"
-          title="시점 초기화 (끌어서 회전 · 휠로 확대)"
-          aria-label="시점 초기화"
-          onclick={() => resetView()}
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"
-            ><path
-              d="M2.5 8a5.5 5.5 0 109.6-3.7M12.5 1.8v2.8H9.7"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.4"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            /><circle cx="8" cy="8" r="1.4" fill="currentColor" /></svg
+        {#if moved}
+          <button
+            class="hud-reset"
+            title="시점 초기화 (끌어서 회전 · 휠로 확대)"
+            aria-label="시점 초기화"
+            onclick={() => resetView()}
           >
-        </button>
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"
+              ><path
+                d="M2.5 8a5.5 5.5 0 109.6-3.7M12.5 1.8v2.8H9.7"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              /><circle cx="8" cy="8" r="1.4" fill="currentColor" /></svg
+            >
+          </button>
+        {/if}
       </div>
     {/if}
   </section>

@@ -190,7 +190,7 @@
         class="btn icon"
         bind:this={menuBtn}
         aria-label="더 보기"
-        title="보조선 · 공유 · 테마 · 도움말"
+        title="보조선 · 반복 재생 · 공유 · 테마 · 도움말"
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         onclick={() => (menuOpen ? closeMenu() : openMenu())}
@@ -219,6 +219,12 @@
             onclick={() => pick(() => (sim.guides = !sim.guides))}
             ><span class="menu-check" aria-hidden="true">{sim.guides ? '✓' : ''}</span>보조선
             (등온선·단열선)</button
+          >
+          <button
+            role="menuitemcheckbox"
+            aria-checked={sim.play.loop}
+            onclick={() => pick(() => (sim.play.loop = !sim.play.loop))}
+            ><span class="menu-check" aria-hidden="true">{sim.play.loop ? '✓' : ''}</span>반복 재생</button
           >
           <button role="menuitem" onclick={() => pick(share)}
             ><span class="menu-check"></span>공유 링크 복사</button
