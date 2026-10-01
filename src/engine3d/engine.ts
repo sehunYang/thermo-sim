@@ -127,6 +127,7 @@ export class Engine {
   private props = { w: 0, p: 0, j: 0 }
   private flow = 0
   private velF = 0
+  private motion = 0
   private hOut = 0.95
   private manoReady = false
   private tmpC = new THREE.Color()
@@ -650,8 +651,11 @@ export class Engine {
     // isochoric step the pins hold the piston: the outside keeps its starting pressure, then
     // blends to the gas pressure over the last 30% before the pins release.
     const mv = v.moving ? v.vdir : 0
-    const velT = v.live && v.moving && type !== 'isochoric' ? (6 * v.tau * (1 - v.tau)) / 1.5 : 0
-    this.velF += (velT - this.velF) * Math.min(1, dt * 8)
+    // The speed profile itself is used unsmoothed, so the imbalance is exactly zero when the
+    // piston stops at a boundary; only pausing and resuming fade it, through `motion`.
+    this.motion += ((v.live && v.moving ? 1 : 0) - this.motion) * Math.min(1, dt * 8)
+    const speed = type !== 'isochoric' ? (6 * v.tau * (1 - v.tau)) / 1.5 : 0
+    this.velF = speed * this.motion
     let Pext: number
     if (type === 'isochoric' && v.live) {
       const r = easeS(Math.max(0, Math.min(1, (v.tau - 0.7) / 0.3)))
