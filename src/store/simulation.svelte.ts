@@ -1,4 +1,4 @@
-import { autoClose, type Closure } from '../physics/close'
+import { autoClose, editEnd, type Closure, type EditRefusal } from '../physics/close'
 import {
   DIATOMIC,
   MONATOMIC,
@@ -277,15 +277,20 @@ export class Simulation {
    * Edit one segment's free variable. Later segments keep their type and free variable and are
    * recomputed; the edit is refused if any end state would leave the allowed range.
    */
-  setEnd(index: number, end: number): boolean {
-    if (!this.start || !Number.isFinite(end)) return false
-    const segments = this.segments.map((s, i) => (i === index ? { ...s, end } : s))
-    const trial = resolve({ gas: this.gas, start: this.start, segments, closed: this.closed })
-    if (trial.some((r) => !isValidState(r.b))) return false
+  /** Change a segment's end value; null when done, else why it was refused (see editEnd). */
+  setEnd(index: number, end: number): EditRefusal | null {
+    if (!this.start || !Number.isFinite(end)) return 'range'
+    const r = editEnd(
+      { gas: this.gas, start: this.start, segments: this.segments, closed: this.closed },
+      index,
+      end,
+    )
+    if ('refused' in r) return r.refused
     this.#push()
-    this.segments = segments
+    this.segments = r.segments
     this.preset = ''
-    return true
+    this.toast = null
+    return null
   }
 
   clear() {
