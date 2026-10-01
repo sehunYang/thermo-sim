@@ -249,8 +249,7 @@ button {
   padding: 8px 10px;
   align-items: center;
   border-bottom: 1px solid var(--line-soft);
-  overflow-x: auto;
-  scrollbar-width: thin;
+  flex-wrap: wrap;
 }
 .tool {
   display: inline-flex;
@@ -278,6 +277,16 @@ button {
   border-radius: 4px;
   padding: 0 4px;
   font-weight: 400;
+}
+.tools .btn {
+  white-space: nowrap;
+  flex: none;
+}
+/* Edit actions wrap as one group, never one button on its own. */
+.tool-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
 }
 .tools .sep {
   width: 1px;

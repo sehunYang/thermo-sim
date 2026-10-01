@@ -1,6 +1,7 @@
 import { R, temperature, type GasConfig, type GasState, type ProcessType } from '../physics/gas'
-import { LIMITS, isValidState } from '../physics/path'
-import { curveP, stateBetween } from '../physics/processes'
+import { closeWith } from '../physics/close'
+import { LIMITS, isValidState, resolve, type ProcessPath } from '../physics/path'
+import { curveP, endState, stateBetween } from '../physics/processes'
 
 /** SVG viewBox layout of the PV graph (viewBox 0 0 W H). */
 export const G = { L: 58, R: 18, T: 16, B: 46, W: 560, H: 440 } as const
@@ -65,14 +66,22 @@ export interface Ghost {
   b: GasState
   valid: boolean
   closing: boolean
+  /** New free value for the last drawn segment when closing needs it nudged onto A's curve. */
+  adjust: number | null
+  /** That last segment as it will be redrawn after the nudge. */
+  prev: { type: ProcessType; a: GasState; b: GasState } | null
   why: string
 }
+
+/** How far (viewBox px) the last state may be nudged so a closing segment snaps onto A. */
+export const SNAP_ADJUST_PX = 40
 
 /**
  * The preview segment from the current end state a, constrained to the tool's curve.
  * Isochoric follows the pointer's pressure, isobaric its volume; isothermal and adiabatic take the
  * point on the curve nearest the pointer on screen. Near the start state A (with at least two
- * segments drawn) the ghost snaps onto A and closes the cycle.
+ * segments drawn) the ghost snaps onto A and closes the cycle. If the tool's curve from the last
+ * state misses A slightly, the last state is nudged along its own segment so that it hits A.
  */
 export function computeGhost(opts: {
   gas: GasConfig
@@ -85,8 +94,10 @@ export function computeGhost(opts: {
   px: number
   py: number
   snapOff?: boolean
+  path?: ProcessPath | null
 }): Ghost {
-  const { gas, tool: t, a, start: A, segmentCount, V, P, px, py, snapOff = false } = opts
+  const { gas, tool: t, start: A, segmentCount, V, P, px, py, snapOff = false, path } = opts
+  let a = opts.a
   let end: number
   let bPV: { P: number; V: number }
   if (t === 'isochoric') {
@@ -110,15 +121,33 @@ export function computeGhost(opts: {
     bPV = { V: end, P: curveP(gas, t, a.P, a.V, end) }
   }
   let closing = false
+  let adjust: number | null = null
+  let prev: Ghost['prev'] = null
   if (segmentCount >= 2) {
     const onCurve =
       t === 'isochoric'
         ? Math.abs(xV(a.V) - xV(A.V)) < 3
         : Math.abs(yP(curveP(gas, t, a.P, a.V, A.V)) - yP(A.P)) < 10
-    if (onCurve && Math.hypot(px - xV(A.V), py - yP(A.P)) < 30) {
+    const nearA = Math.hypot(px - xV(A.V), py - yP(A.P)) < 30
+    if (nearA && onCurve) {
       closing = true
       end = t === 'isochoric' ? A.P : A.V
       bPV = { V: A.V, P: A.P }
+    } else if (nearA && path && !snapOff) {
+      const c = closeWith(path, t)
+      const segs = resolve(path)
+      const last = segs[segs.length - 1]
+      if (c?.adjust != null && last) {
+        const X = endState(gas, last.segment.type, last.a, c.adjust)
+        if (Math.hypot(xV(X.V) - xV(a.V), yP(X.P) - yP(a.P)) <= SNAP_ADJUST_PX) {
+          closing = true
+          adjust = c.adjust
+          prev = { type: last.segment.type, a: last.a, b: X }
+          a = X
+          end = t === 'isochoric' ? A.P : A.V
+          bPV = { V: A.V, P: A.P }
+        }
+      }
     }
   }
   const b: GasState = { ...bPV, T: temperature(gas, bPV.P, bPV.V) }
@@ -135,5 +164,5 @@ export function computeGhost(opts: {
     valid = false
     why = '변화가 너무 작아요'
   }
-  return { type: t, end, a, b, valid, closing, why }
+  return { type: t, end, a, b, valid, closing, adjust, prev, why }
 }

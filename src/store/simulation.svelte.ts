@@ -1,3 +1,4 @@
+import { autoClose, type Closure } from '../physics/close'
 import {
   DIATOMIC,
   MONATOMIC,
@@ -237,12 +238,36 @@ export class Simulation {
     return true
   }
 
-  addSegment(type: ProcessType, end: number, closes: boolean) {
+  /** adjust moves the last drawn segment's free value first (snapping a closing segment onto A). */
+  addSegment(type: ProcessType, end: number, closes: boolean, adjust: number | null = null) {
     if (!this.start || this.closed) return
     this.#push()
-    this.segments = [...this.segments, { id: newId(), type, end }]
+    const n = this.segments.length
+    const kept =
+      adjust != null && n
+        ? this.segments.map((s, i) => (i === n - 1 ? { ...s, end: adjust } : s))
+        : this.segments
+    this.segments = [...kept, { id: newId(), type, end }]
     if (closes) this.closed = true
     this.preset = ''
+  }
+
+  /** Close the path back onto A the shortest way (see autoClose); returns what it did, or null. */
+  autoComplete(): Closure | null {
+    if (!this.path || this.closed) return null
+    const c = autoClose(this.path)
+    if (!c) return null
+    this.#push()
+    const n = this.segments.length
+    const kept =
+      c.adjust != null
+        ? this.segments.map((s, i) => (i === n - 1 ? { ...s, end: c.adjust! } : s))
+        : this.segments
+    this.segments = [...kept, ...c.add.map((s) => ({ id: newId(), ...s }))]
+    this.closed = true
+    this.preset = ''
+    this.play.loop = true
+    return c
   }
 
   /**
