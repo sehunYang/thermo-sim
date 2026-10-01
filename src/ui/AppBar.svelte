@@ -73,7 +73,6 @@
     </div>
     <div style="min-width:0">
       <h1 class="brand-name" style="margin:0">열역학 과정 시뮬레이터</h1>
-      <div class="brand-sub">이상기체 · PV 그래프 + 가상 열기관</div>
     </div>
   </div>
   <div class="bar-group">

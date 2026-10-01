@@ -11,7 +11,6 @@
   let host: HTMLElement
   let hist = $state<HTMLCanvasElement>()
   let failed = $state(false)
-  let Pext = $state<number | null>(null)
   let resetView = $state<() => void>(() => {})
 
   const v = $derived(sim.view)
@@ -37,8 +36,8 @@
   const work = $derived.by(() => {
     if (v.type === 'isochoric') return { tag: '피스톤 고정', col: '', val: 'W = 0' }
     return v.work >= 0
-      ? { tag: '▲ 기체가 일함', col: '#4CC06C', val: `W ${fmtE(v.W)} J` }
-      : { tag: '▼ 기체가 일을 받음', col: '#F0924A', val: `W ${fmtE(v.W)} J` }
+      ? { tag: '▲ 기체가 일함', col: '', val: `W ${fmtE(v.W)} J` }
+      : { tag: '▼ 기체가 일을 받음', col: '', val: `W ${fmtE(v.W)} J` }
   })
   const pct = (x: number, max: number) => `${Math.min(100, Math.max(0, (x / max) * 100))}%`
 
@@ -129,7 +128,6 @@
           fridge: sim.fridge,
           reservoirT: sim.reservoirT,
         })
-        Pext = engine.Pext
         if (frame++ % 3 === 0) drawHist(engine)
       }
       raf = requestAnimationFrame(loop)
@@ -169,20 +167,9 @@
           <div class="gauges">
             <div class="gauge">
               <div class="gauge-top">
-                <span class="gauge-k">기체 압력 P</span><span class="gauge-v">{f0(v.st.P)} kPa</span
-                >
+                <span class="gauge-k">압력 P</span><span class="gauge-v">{f0(v.st.P)} kPa</span>
               </div>
               <div class="gauge-bar"><i style="width:{pct(v.st.P, LIMITS.Pmax)}"></i></div>
-            </div>
-            <div class="gauge">
-              <div class="gauge-top">
-                <span class="gauge-k" title="움직이는 동안 차이를 과장해 표시">바깥 압력*</span
-                ><span class="gauge-v">{Pext == null ? '–' : f0(Pext) + ' kPa'}</span>
-              </div>
-              <div class="gauge-bar">
-                <i style="width:{Pext == null ? '0%' : pct(Pext, LIMITS.Pmax)};background:#E8C070"
-                ></i>
-              </div>
             </div>
             <div class="gauge">
               <div class="gauge-top">
@@ -195,29 +182,23 @@
                 <span class="gauge-k">온도 T</span><span class="gauge-v">{f0(v.st.T)} K</span>
               </div>
               <div class="gauge-bar">
-                <i
-                  style="width:{pct(
-                    v.st.T,
-                    1500,
-                  )};background:linear-gradient(90deg,#3b82f6,#f59e0b,#ef4444)"
-                ></i>
+                <i class="tbar" style="width:{pct(v.st.T, 1500)}"></i>
               </div>
             </div>
           </div>
         {/if}
-        <div class="hud-legend">
-          <div class="row"><span>입자 속력 분포</span><span>- - 평균(√v²)</span></div>
-          <canvas bind:this={hist} aria-label="입자 속력 분포 히스토그램"></canvas>
-          <div class="axis">
-            <span>느림</span><span>입자 색 = 그 입자의 속력</span><span>빠름</span>
-          </div>
-        </div>
-        <div class="hud-hint">
-          끌어서 회전 · 휠로 확대
-          <button class="hud-reset" onclick={() => resetView()}>시점 초기화</button>
-        </div>
+        <button class="hud-reset" title="끌어서 회전 · 휠로 확대" onclick={() => resetView()}
+          >시점 초기화</button
+        >
       </div>
     {/if}
   </section>
-  <WhyRow />
+  <div class="below">
+    <WhyRow />
+    <figure class="hist">
+      <figcaption><span>입자 속력 분포</span><span>- - 평균</span></figcaption>
+      <canvas bind:this={hist} aria-label="입자 속력 분포 히스토그램"></canvas>
+      <div class="axis"><span>느림</span><span>빠름</span></div>
+    </figure>
+  </div>
 </div>

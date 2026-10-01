@@ -14,7 +14,8 @@
   const n = $derived(sim.resolved.length)
   const toLabel = (i: number) => (sim.closed && i === n - 1 ? 'A' : LETTERS[i + 1])
   const note = $derived(sim.preset ? ' ' + PRESET_NOTE[sim.preset] : '')
-  const cls = (v: number, pos: string, neg: string) => (v > 0.05 ? pos : v < -0.05 ? neg : '')
+  /** Sign in words, so the table never relies on colour (0.5 J: a closing segment's rounding). */
+  const say = (v: number, pos: string, neg: string) => (v > 0.5 ? pos : v < -0.5 ? neg : '없음')
   const pct = (x: number) => `${(x * 100).toFixed(1)}%`
 
   function onEnd(i: number, e: Event) {
@@ -28,19 +29,18 @@
     }
   }
 
-  // The law tab follows the playhead; without one it shows the last segment in full.
+  // The law tab follows the playhead; without one it shows the first segment in full.
   const cur = $derived(sim.play.active ? sim.play.seg : -1)
   const law = $derived.by(() => {
     if (!n) return null
-    const i = sim.play.active ? Math.min(sim.play.seg, n - 1) : n - 1
+    const i = sim.play.active ? Math.min(sim.play.seg, n - 1) : 0
     const r = sim.resolved[i]
     const s = sim.play.active ? sim.play.s : 1
     return { i, r, e: energy(sim.gas, r.segment.type, r.a, stateAt(sim.gas, r, s)) }
   })
+  // Scaled to the values shown, so the bars are readable from the first moment of playback.
   const lawScale = $derived(
-    law
-      ? Math.max(1, Math.abs(law.r.energy.Q), Math.abs(law.r.energy.dU), Math.abs(law.r.energy.W))
-      : 1,
+    law ? Math.max(1e-9, Math.abs(law.e.Q), Math.abs(law.e.dU), Math.abs(law.e.W)) : 1,
   )
   const bar = (v: number) => {
     const w = Math.min(50, (Math.abs(v) / lawScale) * 50)
@@ -59,11 +59,7 @@
   <div class="tabpanel" role="tabpanel">
     {#if sim.tab === 'table'}
       {#if !n}
-        <div class="empty">
-          {sim.start
-            ? '아직 그린 구간이 없어요. 과정 도구를 고르고 그래프에 다음 상태를 정하세요.'
-            : '그래프를 눌러 시작 상태 A를 정하면 여기에 구간별 에너지가 쌓입니다.'}
-        </div>
+        <div class="empty">구간을 그리면 여기에 구간별 에너지가 쌓여요.</div>
       {:else}
         <div class="tbl-wrap">
           <table>
@@ -102,51 +98,52 @@
                       onchange={(ev) => onEnd(i, ev)}
                     />
                   </td>
-                  <td class="num {cls(e.W, 'pos', 'neg')}">{fmtE(e.W)}</td>
-                  <td class="num {cls(e.Q, 'qin', 'qout')}">{fmtE(e.Q)}</td>
+                  <td class="num"
+                    >{fmtE(e.W)}<small class="say">{say(e.W, '기체가 함', '기체가 받음')}</small
+                    ></td
+                  >
+                  <td class="num"
+                    >{fmtE(e.Q)}<small class="say">{say(e.Q, '받음', '잃음')}</small></td
+                  >
                   <td class="num">{fmtE(e.dU)}</td>
                 </tr>
               {/each}
             </tbody>
           </table>
         </div>
-        <div class="hint-muted">
-          부호: Q &gt; 0 흡열, W &gt; 0 기체가 외부에 한 일. 끝값을 고치면 뒤 구간은 과정 종류를
-          유지한 채 다시 계산돼요.
-        </div>
       {/if}
     {:else if sim.tab === 'law'}
-      <div class="law">
-        {#if !law}
-          <div class="law-eq">
-            <div class="empty">
-              구간을 그리면 과정마다 Q = ΔU + W가 실시간으로 맞아떨어지는 모습을 보여줘요.
+      {#if !law}
+        <div class="empty">구간을 그리면 과정마다 Q = ΔU + W가 맞아떨어지는 모습을 보여줘요.</div>
+      {:else}
+        {@const e = law.e}
+        <div class="law">
+          <div>
+            <div class="law-title">
+              {LETTERS[law.i]}→{toLabel(law.i)}
+              {PROC[law.r.segment.type].full} · {sim.play.active ? '지금까지' : '구간 전체'}
             </div>
-          </div>
-        {:else}
-          {@const e = law.e}
-          {@const pr = PROC[law.r.segment.type]}
-          <div class="law-eq">
-            <b style="color:var(--ink)">{LETTERS[law.i]}→{toLabel(law.i)} {pr.full}</b> · {pr.law}
-            <span class="big">{fmtE(e.Q)} = {fmtE(e.dU)} + {fmtE(e.W)}</span>
-            지금까지 흡수한 열(Q)이 내부 에너지 변화(ΔU)와 기체가 한 일(W)로 나뉩니다. 재생하면 막대가
-            함께 자라요.
+            <div class="law-eq num">{fmtE(e.Q)} J = {fmtE(e.dU)} J + {fmtE(e.W)} J</div>
+            <p class="hint-muted">
+              열 Q는 내부 에너지 변화 ΔU와 기체가 한 일 W로 나뉘어요. 재생하면 막대가 함께 자라요.
+            </p>
           </div>
           <div class="bars">
-            {#each [['Q', e.Q, e.Q >= 0 ? 'var(--heat-in)' : 'var(--heat-out)'], ['ΔU', e.dU, 'var(--p-isochoric)'], ['W', e.W, e.W >= 0 ? 'var(--work-pos)' : 'var(--work-neg)']] as [k, v, col] (k)}
+            {#each [['Q', e.Q, 'heat'], ['ΔU', e.dU, 'du'], ['W', e.W, 'w']] as [k, v, cls] (k)}
               {@const b = bar(v as number)}
               <div class="barrow">
-                <span class="k">{k}</span>
+                <span class="k num">{k}</span>
                 <span class="bartrack"
-                  ><span class="zero"></span><i style="left:{b.left}%;width:{b.w}%;background:{col}"
+                  ><span class="zero"></span><i
+                    class={cls as string}
+                    style="left:{b.left}%;width:{b.w}%"
                   ></i></span
                 >
-                <span class="v">{fmtE(v as number)} J</span>
               </div>
             {/each}
           </div>
-        {/if}
-      </div>
+        </div>
+      {/if}
     {:else if !sim.cycle}
       <div class="empty">
         경로가 A로 돌아와 닫히면 알짜 일, 흡수·방출 열, 열효율이 여기에 나타나요. 예시에서 카르노

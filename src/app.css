@@ -14,10 +14,10 @@
   --p-isobaric: #0f8c73;
   --p-isothermal: #c9761c;
   --p-adiabatic: #c73d66;
-  --heat-in: #e0503a;
-  --heat-out: #2f7fe8;
-  --work-pos: #2e9a4e;
-  --work-neg: #d2691e;
+  /* Colour has one meaning each. Primaries appear only for: the four processes (lines, swatches,
+     tools), heat (orange, whichever way it flows), particle speed (blue → red), the reservoirs
+     (hot red, cold blue) and the accent (buttons, focus, playhead). Numbers stay in ink. */
+  --heat: #e8822a;
   --graph-bg: #fbfcfd;
   --grid: #e6ebf0;
   --guide: #b9c4cf;
@@ -45,10 +45,7 @@
     --p-isobaric: #33c2a2;
     --p-isothermal: #f0a24e;
     --p-adiabatic: #ee6e92;
-    --heat-in: #f26b55;
-    --heat-out: #5a9cf2;
-    --work-pos: #4cc06c;
-    --work-neg: #f0924a;
+    --heat: #ffa060;
     --graph-bg: #101820;
     --grid: #1e2a36;
     --guide: #3a4b5c;
@@ -72,10 +69,7 @@
   --p-isobaric: #33c2a2;
   --p-isothermal: #f0a24e;
   --p-adiabatic: #ee6e92;
-  --heat-in: #f26b55;
-  --heat-out: #5a9cf2;
-  --work-pos: #4cc06c;
-  --work-neg: #f0924a;
+  --heat: #ffa060;
   --graph-bg: #101820;
   --grid: #1e2a36;
   --guide: #3a4b5c;
@@ -168,11 +162,6 @@ button {
 .brand-name {
   font-weight: 700;
   font-size: 15px;
-  white-space: nowrap;
-}
-.brand-sub {
-  font-size: 12px;
-  color: var(--muted);
   white-space: nowrap;
 }
 .bar-group {
@@ -271,11 +260,8 @@ button {
 }
 .tool kbd {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  padding: 0 4px;
   font-weight: 400;
 }
 .tools .btn {
@@ -392,27 +378,32 @@ button {
   flex: 1;
   min-height: 0;
 }
-.why {
-  background: var(--surface-2);
+/* Below the 3D view: the explanation and the speed histogram, at a fixed height so playing,
+   pausing and stepping never resize the scene. */
+.below {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 170px;
+  height: 168px;
   border-top: 1px solid var(--line);
-  padding: 8px 14px 10px;
-  font-size: 12.5px;
+  background: var(--surface-2);
+}
+.below:has(.why-tog[aria-expanded='false']) {
+  height: auto;
+}
+.why {
+  padding: 8px 14px 8px;
+  font-size: 12px;
   line-height: 1.5;
   color: var(--ink);
+  overflow: auto;
 }
 .why-head {
   display: flex;
   align-items: center;
-  gap: 10px;
   justify-content: space-between;
 }
 .why-head b {
   font-size: 13px;
-}
-.why-head .sub {
-  color: var(--muted);
-  font-size: 12px;
-  margin-right: auto;
 }
 .why-tog {
   border: 0;
@@ -423,12 +414,12 @@ button {
   padding: 2px 4px;
 }
 .why ol {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   padding: 0;
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 6px 14px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 4px 14px;
   counter-reset: w;
 }
 .why li {
@@ -442,29 +433,46 @@ button {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--ink);
+  color: var(--surface);
   font-size: 10px;
   font-weight: 700;
   display: grid;
   place-items: center;
   margin-top: 2px;
 }
+.why-empty,
 .why-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  margin-top: 6px;
-  font-size: 11.5px;
+  margin: 4px 0 0;
   color: var(--muted);
 }
-.why-legend i {
-  display: inline-block;
-  width: 10px;
-  height: 3px;
-  border-radius: 2px;
-  margin-right: 4px;
-  vertical-align: middle;
+.why-legend {
+  font-size: 11.5px;
+}
+.hist {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  color: var(--muted);
+}
+.hist figcaption,
+.hist .axis {
+  display: flex;
+  justify-content: space-between;
+}
+.hist figcaption span:first-child {
+  color: var(--ink);
+  font-weight: 600;
+}
+.hist canvas {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  margin: 4px 0 2px;
+  background: var(--engine-bg);
 }
 .gauges {
   position: absolute;
@@ -508,50 +516,11 @@ button {
   display: block;
   height: 100%;
   border-radius: 2px;
-  background: #8fb7f5;
+  background: #c9d4df;
   transition: width 0.1s linear;
 }
-.hud-legend {
-  position: absolute;
-  left: 12px;
-  bottom: 10px;
-  width: 180px;
-  background: rgba(18, 26, 35, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 9px;
-  padding: 6px 9px 7px;
-  backdrop-filter: blur(4px);
-}
-.hud-legend .row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: #a9b7c5;
-}
-.hud-legend canvas {
-  display: block;
-  width: 100%;
-  height: 44px;
-  margin: 4px 0 3px;
-}
-.hud-legend .axis {
-  display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  color: #7f90a1;
-}
-.speedramp {
-  width: 70px;
-  height: 6px;
-  border-radius: 3px;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #f59e0b, #ef4444);
-}
-.hud-hint {
-  position: absolute;
-  right: 12px;
-  bottom: 10px;
-  font-size: 11px;
-  color: #7f90a1;
+.gauge-bar i.tbar {
+  background: linear-gradient(90deg, #3b82f6, #f59e0b, #ef4444);
 }
 .engine-fallback {
   position: absolute;
@@ -576,6 +545,8 @@ button {
 .run {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-width: 112px;
   gap: 8px;
   background: var(--accent);
   color: var(--accent-ink);
@@ -653,7 +624,6 @@ button {
 }
 .tabpanel {
   padding: 14px;
-  min-height: 190px;
 }
 .tbl-wrap {
   overflow-x: auto;
@@ -709,17 +679,11 @@ tr.current td {
   font-family: var(--mono);
   font-size: 12px;
 }
-.pos {
-  color: var(--work-pos);
-}
-.neg {
-  color: var(--work-neg);
-}
-.qin {
-  color: var(--heat-in);
-}
-.qout {
-  color: var(--heat-out);
+.say {
+  margin-left: 6px;
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--muted);
 }
 .empty {
   color: var(--muted);
@@ -731,17 +695,12 @@ tr.current td {
   gap: 18px 28px;
   align-items: start;
 }
-.law-eq {
-  font-size: 13px;
-  color: var(--muted);
+.law-title {
+  font-weight: 600;
 }
-.law-eq .big {
-  display: block;
-  font-family: var(--mono);
+.law-eq {
   font-size: 20px;
-  color: var(--ink);
   margin: 4px 0 8px;
-  font-variant-numeric: tabular-nums;
 }
 .bars {
   display: flex;
@@ -750,20 +709,17 @@ tr.current td {
 }
 .barrow {
   display: grid;
-  grid-template-columns: 42px 1fr 92px;
+  grid-template-columns: 32px 1fr;
   gap: 10px;
   align-items: center;
 }
 .barrow .k {
   font-weight: 700;
-  font-family: var(--mono);
 }
 .bartrack {
   position: relative;
   height: 18px;
   background: var(--surface-2);
-  border-radius: 4px;
-  border: 1px solid var(--line-soft);
 }
 .bartrack .zero {
   position: absolute;
@@ -777,12 +733,16 @@ tr.current td {
   position: absolute;
   top: 2px;
   bottom: 2px;
-  border-radius: 3px;
 }
-.barrow .v {
-  text-align: right;
-  font-family: var(--mono);
-  font-size: 13px;
+.bartrack i.heat {
+  background: var(--heat);
+}
+.bartrack i.du {
+  background: var(--ink);
+}
+.bartrack i.w {
+  background: var(--muted);
+  opacity: 0.55;
 }
 /* Cycle analysis: the limit comparison leads; totals are plain type, no boxes. */
 .limit {
@@ -838,9 +798,9 @@ tr.current td {
 }
 
 .toast {
-  position: absolute;
+  position: fixed;
   left: 50%;
-  bottom: 18px;
+  bottom: 24px;
   transform: translateX(-50%);
   background: var(--ink);
   color: var(--surface);
@@ -947,9 +907,6 @@ tr.current td {
   .hide-sm {
     display: none !important;
   }
-  .brand-sub {
-    display: none;
-  }
   .appbar {
     padding: 8px 10px;
   }
@@ -981,12 +938,6 @@ tr.current td {
   .gauge {
     padding: 4px 7px;
   }
-  .hud-hint {
-    display: none;
-  }
-  .hud-legend {
-    width: 150px;
-  }
   .engine-col {
     order: -1;
     border-bottom: 1px solid var(--line);
@@ -1000,14 +951,21 @@ tr.current td {
     padding: 8px 10px;
     font-size: 12px;
   }
-  .why-head .sub {
-    display: none;
-  }
-  .hud-legend {
-    display: none;
-  }
   #hudWork {
     display: none;
+  }
+  .hud-reset {
+    top: 10px;
+    bottom: auto;
+  }
+  .below {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .hist {
+    border-left: 0;
+    border-top: 1px solid var(--line-soft);
+    height: 104px;
   }
   .playbar {
     position: sticky;
@@ -1044,12 +1002,10 @@ tr.current td {
 .readout.flip {
   transform: translate(calc(-100% - 12px), -120%);
 }
-.hud-hint {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 .hud-reset {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
   pointer-events: auto;
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(18, 26, 35, 0.82);
@@ -1076,9 +1032,6 @@ tr.current td {
   }
 }
 @container app (max-width: 540px) {
-  .hud-hint {
-    display: none;
-  }
 }
 /* The guide's card must sit above the highlighted target (z-index 21) even when the stacked
    tablet and phone layouts put that target under the card: the dim layer stays below the target,
@@ -1089,4 +1042,38 @@ tr.current td {
 .coach-card {
   position: relative;
   z-index: 23;
+}
+
+/* The loop toggle is on by default; its pressed state is the icon colour, not a filled box. */
+.btn.loop[aria-pressed='true'] {
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+/* Empty graph: the one thing to do, centred and readable. */
+.graph-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 6px;
+  pointer-events: none;
+  text-align: center;
+  padding: 0 24px;
+}
+.graph-empty p {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+.linkish {
+  pointer-events: auto;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 6px;
 }
