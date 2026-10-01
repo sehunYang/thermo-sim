@@ -101,7 +101,4 @@
       /></svg
     ></button
   >
-  <span class="time num"
-    >{(sim.progress * sim.totalSeconds).toFixed(1)} / {sim.totalSeconds.toFixed(1)} s</span
-  >
 </div>

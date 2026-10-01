@@ -63,7 +63,7 @@ test('a cycle can be drawn, played and inspected with the keyboard alone', async
   await page.keyboard.press('Space')
   await page.getByRole('tab', { name: '구간과 에너지' }).focus()
   await page.keyboard.press('ArrowRight')
-  await expect(page.getByRole('tab', { name: '제1법칙 Q = ΔU + W' })).toBeFocused()
+  await expect(page.getByRole('tab', { name: '제1법칙' })).toBeFocused()
   await page.keyboard.press('End')
   await expect(page.getByRole('tab', { name: '순환 분석' })).toHaveAttribute(
     'aria-selected',

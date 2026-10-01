@@ -27,7 +27,7 @@ function makeLabel(): Label {
   const spr = new THREE.Sprite(
     new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false }),
   ) as Label
-  spr.scale.set(1.7, 0.565, 1)
+  spr.scale.set(2, 0.665, 1)
   spr.renderOrder = 10
   let key = ''
   spr.setText = (l1, l2, col) => {
@@ -113,6 +113,8 @@ export class Engine {
   readonly speeds = new Float32Array(NP)
   vrms = vrmsAt(300)
   private lastT = 300
+  /** Bumped whenever speeds are redrawn, so a histogram can drop its running average. */
+  resamples = 0
 
   private renderer: THREE.WebGLRenderer
   private scene = new THREE.Scene()
@@ -187,8 +189,13 @@ export class Engine {
     const h = cv.clientHeight
     if (!w || !h) return
     this.renderer.setSize(w, h, false)
-    this.camera.aspect = w / h
-    this.dist = w / h < 1.1 ? 12.5 : 9
+    const a = w / h
+    this.camera.aspect = a
+    // Narrower views pull back a little, and the engine is nudged left so the gauge column on the
+    // right never covers the U-tube labels. Phones stack the gauges above instead.
+    this.dist = a < 1.1 ? 12.5 : 9 + Math.max(0, Math.min(0.6, 1.9 - a)) * 2.5
+    if (a < 1.1) this.camera.clearViewOffset()
+    else this.camera.setViewOffset(w, h, Math.min(80, w * 0.08), 0, w, h)
     this.camera.updateProjectionMatrix()
   }
 
@@ -496,6 +503,7 @@ export class Engine {
     const { vel } = this
     for (let k = 0; k < NP * 3; k++) vel[k] = a * gauss()
     this.lastT = T
+    this.resamples++
   }
 
   /**
@@ -587,17 +595,17 @@ export class Engine {
       ),
     )
     const labGas = makeLabel()
-    labGas.scale.set(1.1, 0.37, 1)
+    labGas.scale.set(1.45, 0.48, 1)
     labGas.position.set(MX1 - 0.1, 3.02, MZ)
     labGas.setText('기체 쪽', '', '#9FD4FF')
     mano.add(labGas)
     const labOut = makeLabel()
-    labOut.scale.set(1.1, 0.37, 1)
+    labOut.scale.set(1.45, 0.48, 1)
     labOut.position.set(MX2 + 0.28, MYT + 0.22, MZ)
-    labOut.setText('바깥 쪽', '열려 있음', '#E8C070')
+    labOut.setText('바깥 쪽', '', '#E8C070')
     mano.add(labOut)
     this.labDh = makeLabel()
-    this.labDh.scale.set(0.9, 0.3, 1)
+    this.labDh.scale.set(1.2, 0.4, 1)
     this.labDh.setText('Δh', '', '#FFD08A')
     mano.add(this.labDh)
     this.dhLine = new THREE.Mesh(
@@ -615,6 +623,17 @@ export class Engine {
     const tnow = performance.now() / 1000
     const k6 = Math.min(1, dt * 6)
 
+    // A seek, a new example, a gas change or a shared link jumps the state. Set the piston and
+    // redraw speeds from Maxwell's distribution at once: rescaling leaves a two-humped histogram,
+    // and a sliding piston would squeeze (and heat) only the particles it meets.
+    const hTarget = hOfV(st.V)
+    if (Math.abs(hTarget - this.hCur) > 0.3 || Math.abs(st.T - this.lastT) > 0.15 * this.lastT) {
+      this.hCur = hTarget
+      const { pos } = this
+      for (let i = 0; i < NP; i++)
+        if (pos[i * 3 + 1] > hTarget - 0.04) pos[i * 3 + 1] = 0.05 + Math.random() * (hTarget - 0.1)
+      this.resample(st.T)
+    }
     // Piston follows the volume; its velocity is clamped so a big jump cannot blow up the gas.
     const hPrev = this.hCur
     this.hCur += (hOfV(st.V) - this.hCur) * Math.min(1, dt * 14)
@@ -714,9 +733,9 @@ export class Engine {
             ? '저온부 (실내)'
             : '저온 열원'
       const col = k === 'hot' ? '#FF8A6A' : '#7FB4FF'
-      let l2 = reservoirT ? `${Math.round(reservoirT[k])} K 부근` : ''
-      if (on) l2 = dir > 0 ? '▶ 기체에 열을 줌' : '◀ 기체에서 열을 받음'
-      R.lab.setText(name, l2, col)
+      // The temperature stays while connected: "1083 K > gas" is the point of the second law.
+      // Which way heat goes is already shown by the chip and the grains on the bridge.
+      R.lab.setText(name, reservoirT ? `${Math.round(reservoirT[k])} K 부근` : '', col)
     }
     this.baseMat.emissive.setHex(side ? 0xff7a30 : 0x000000)
     this.baseMat.emissiveIntensity = 0.5 * inten * this.flow
@@ -781,10 +800,7 @@ export class Engine {
     type: View['type'],
     heatOn: boolean,
   ) {
-    // A seek, a new preset, a gas change or a shared link moves T in one step. Rescaling would
-    // leave a two-humped histogram for seconds, so start again from Maxwell's distribution.
-    // Playback changes T by far less than this per frame.
-    if (Math.abs(T - this.lastT) > 0.15 * this.lastT) this.resample(T)
+    // Jumps were handled in frame(); playback changes T by far less than 15% per frame.
     this.lastT = T
     const vrms = vrmsAt(T)
     this.vrms = vrms

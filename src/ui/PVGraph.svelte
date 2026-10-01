@@ -92,6 +92,11 @@
   const status = $derived.by(() => {
     if (P.active && P.done)
       return sim.closed ? '한 바퀴 완료 · 파란 영역이 알짜 일이에요' : '재생 완료'
+    if (cur >= 0 && !P.playing) {
+      const n = sim.resolved.length
+      const to = sim.closed && cur === n - 1 ? 'A' : LETTERS[cur + 1]
+      return `${LETTERS[cur]}→${to} ${PROC[sim.resolved[cur].segment.type].full} · 일시정지`
+    }
     if (cur >= 0 || !sim.start) return ''
     if (sim.closed) return '순환이 닫혔어요 · 실행을 눌러 보세요'
     if (ghost && !ghost.valid) return ghost.why || '범위를 벗어났어요'
@@ -99,13 +104,21 @@
       return ghost.adjust != null
         ? '놓으면 앞 상태를 살짝 맞춰 A에 닫아요'
         : '놓으면 A로 돌아와 순환이 닫혀요'
-    if (ghost?.far)
-      return sim.tool === 'isothermal'
-        ? '등온선은 오른쪽으로 갈수록 내려가요(PV 일정) · 선 위의 가장 가까운 점에 찍어요'
-        : '단열선은 등온선보다 가파르게 내려가요 · 선 위의 가장 가까운 점에 찍어요'
+    if (ghost?.far) return farHint(sim.tool, '찍어요')
+    if (note) return note
+    // A loaded single-process example is complete as it is; drawing on is optional.
+    if (sim.preset) return '실행을 눌러 보세요 · 이어서 그려도 돼요'
     const t = PROC[sim.tool]
     return `${t.name}: ${t.plain} · 끌거나 눌러서 다음 상태를 정하세요`
   })
+
+  // A tap ends before its preview can be read, so the reason a point landed off the finger
+  // stays in the status line until the next touch.
+  let note = $state('')
+  const farHint = (tool: string, verb: string) =>
+    tool === 'isothermal'
+      ? `등온선은 오른쪽으로 갈수록 내려가요(PV 일정) · 선 위의 가장 가까운 점에 ${verb}`
+      : `단열선은 등온선보다 가파르게 내려가요 · 선 위의 가장 가까운 점에 ${verb}`
 
   function openPresets() {
     const sel = document.querySelector<HTMLSelectElement>('select[aria-label="예시 경로"]')
@@ -122,6 +135,11 @@
     void sim.tool
     void sim.lastState
     if (!dragging) ghost = null
+  })
+  // A new tool starts a fresh hint (the path changing must not clear it: placing the point does).
+  $effect(() => {
+    void sim.tool
+    note = ''
   })
 
   function svgPoint(e: PointerEvent) {
@@ -163,6 +181,7 @@
       text: `V ${f1(V)} L · P ${f0(P)} kPa · T ${f0(temperature(sim.gas, P, V))} K`,
     }
     ghost = ghostAt(p.x, p.y, e.shiftKey)
+    if (ghost) readout.text = say(ghost.b.V, ghost.b.P)
   }
 
   function onLeave() {
@@ -176,6 +195,7 @@
     // On an open path, touching the graph leaves playback and goes back to editing. A closed
     // cycle has nothing left to draw, so a stray touch must not reset its playback.
     if (sim.play.active && !sim.closed) sim.stopPlay()
+    note = ''
     dragging = true
     svg.setPointerCapture(e.pointerId)
     const p = svgPoint(e)
@@ -201,6 +221,7 @@
       return
     }
     sim.addSegment(gh.type, gh.end, gh.closing, gh.adjust)
+    note = gh.far ? farHint(gh.type, '찍었어요') : ''
     if (gh.closing)
       sim.notify(
         gh.adjust != null
@@ -236,12 +257,7 @@
       readout = { x, y, flip: x > r.width - 200, text: say(V, P) }
     }
     ghost = ghostAt(xV(V), yP(P), false)
-  }
-
-  function onFocus() {
-    if (!svg.matches(':focus-visible')) return
-    const a = sim.lastState
-    showCursor(a ? a.V : 20, a ? a.P : 200)
+    if (ghost && readout) readout.text = say(ghost.b.V, ghost.b.P)
   }
 
   function onBlur() {
@@ -267,9 +283,12 @@
       const V = Math.max(0.5, Math.min(VMAX, snapV(c.V + d[e.key][0])))
       const P = Math.max(5, Math.min(PMAX, snapP(c.P + d[e.key][1])))
       showCursor(V, P)
-    } else if (e.key === 'Enter' && kb) {
+    } else if (e.key === 'Enter') {
       e.preventDefault()
       e.stopPropagation()
+      // Enter before any arrow press places the point where the cursor would first appear.
+      if (!kb) showCursor(sim.lastState?.V ?? 20, sim.lastState?.P ?? 200)
+      if (!kb) return
       commit(xV(kb.V), yP(kb.P), false)
       // Keep the cursor where the new point landed so drawing continues from there.
       const a = sim.lastState
@@ -289,7 +308,6 @@
     aria-label="압력-부피 그래프"
     aria-describedby="graph-keys graph-live"
     tabindex="0"
-    onfocus={onFocus}
     onblur={onBlur}
     onkeydown={onKey}
     onpointermove={onMove}

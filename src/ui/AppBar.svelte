@@ -58,7 +58,11 @@
   function onGas(e: Event) {
     const di = (e.currentTarget as HTMLSelectElement).value === 'di'
     sim.setGas(di ? 'di' : 'mono')
-    sim.notify(di ? '이원자 기체: Cv = 5R/2, 단열선이 덜 가팔라져요' : '단원자 기체: Cv = 3R/2')
+    sim.notify(
+      di
+        ? '이원자 기체(공기처럼 원자 둘): 온도를 같은 만큼 올리는 데 열이 더 들고, 단열선이 덜 가팔라요'
+        : '단원자 기체(헬륨처럼 원자 하나): 단열선이 가장 가팔라요',
+    )
   }
 
   function toggleTheme() {
@@ -92,12 +96,12 @@
           cx="7"
           cy="11.5"
           r="1"
-          fill="#F0A24E"
-        /><circle cx="11" cy="13" r="1" fill="#5A9CF2" /><circle
+          fill="#EDF1F4"
+        /><circle cx="11" cy="13" r="1" fill="#EDF1F4" /><circle
           cx="10"
           cy="10"
           r="1"
-          fill="#EE6E92"
+          fill="#EDF1F4"
         /></svg
       >
     </div>

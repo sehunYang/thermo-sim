@@ -7,7 +7,7 @@
 
   const tabs: [PanelTab, string][] = [
     ['table', '구간과 에너지'],
-    ['law', '제1법칙 Q = ΔU + W'],
+    ['law', '제1법칙'],
     ['cycle', '순환 분석'],
   ]
 
@@ -35,13 +35,17 @@
     if (!n) return null
     const i = sim.play.active ? Math.min(sim.play.seg, n - 1) : 0
     const r = sim.resolved[i]
-    const s = sim.play.active ? sim.play.s : 1
-    return { i, r, e: energy(sim.gas, r.segment.type, r.a, stateAt(sim.gas, r, s)) }
+    // Waiting at a segment's start, "so far" would be 0 = 0 + 0; show the whole segment instead.
+    const whole = !sim.play.active || (sim.play.s === 0 && !sim.play.playing)
+    const s = whole ? 1 : sim.play.s
+    return { i, r, whole, e: energy(sim.gas, r.segment.type, r.a, stateAt(sim.gas, r, s)) }
   })
   // Scaled to the values shown, so the bars are readable from the first moment of playback.
   const lawScale = $derived(
     law ? Math.max(1e-9, Math.abs(law.e.Q), Math.abs(law.e.dU), Math.abs(law.e.W)) : 1,
   )
+  // A negative term is written in brackets: "+ (−421.7 J)", never "+ −421.7 J".
+  const term = (v: number) => (fmtE(v).startsWith('−') ? `(${fmtE(v)} J)` : `${fmtE(v)} J`)
   const bar = (v: number) => {
     const w = Math.min(50, (Math.abs(v) / lawScale) * 50)
     return { left: v >= 0 ? 50 : 50 - w, w }
@@ -148,9 +152,9 @@
           <div>
             <div class="law-title">
               {LETTERS[law.i]}→{toLabel(law.i)}
-              {PROC[law.r.segment.type].full} · {sim.play.active ? '지금까지' : '구간 전체'}
+              {PROC[law.r.segment.type].full} · {law.whole ? '구간 전체' : '지금까지'}
             </div>
-            <div class="law-eq num">{fmtE(e.Q)} J = {fmtE(e.dU)} J + {fmtE(e.W)} J</div>
+            <div class="law-eq num">{fmtE(e.Q)} J = {term(e.dU)} + {term(e.W)}</div>
             <p class="hint-muted">
               열 Q는 내부 에너지 변화 ΔU와 기체가 한 일 W로 나뉘어요. 재생하면 막대가 함께 자라요.
             </p>

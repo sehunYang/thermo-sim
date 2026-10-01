@@ -14,7 +14,7 @@
   --accent-soft: #e3ecf9;
   --p-isochoric: #7148d1;
   --p-isobaric: #0f8c73;
-  --p-isothermal: #c9761c;
+  --p-isothermal: #0b84a5;
   --p-adiabatic: #c73d66;
   /* Colour has one meaning each. Primaries appear only for: the four processes (lines, swatches,
      tools), heat (orange, whichever way it flows), particle speed (blue → red), the reservoirs
@@ -46,7 +46,7 @@
     --accent-soft: #1b2c42;
     --p-isochoric: #a286f2;
     --p-isobaric: #33c2a2;
-    --p-isothermal: #f0a24e;
+    --p-isothermal: #4fc3e3;
     --p-adiabatic: #ee6e92;
     --heat: #ffa060;
     --graph-bg: #101820;
@@ -71,7 +71,7 @@
   --accent-soft: #1b2c42;
   --p-isochoric: #a286f2;
   --p-isobaric: #33c2a2;
-  --p-isothermal: #f0a24e;
+  --p-isothermal: #4fc3e3;
   --p-adiabatic: #ee6e92;
   --heat: #ffa060;
   --graph-bg: #101820;
@@ -257,12 +257,6 @@ button {
   box-shadow: inset 0 0 0 1px var(--tc);
   background: color-mix(in srgb, var(--tc) 10%, var(--surface));
 }
-.tool kbd {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--muted);
-  font-weight: 400;
-}
 .tools .btn {
   white-space: nowrap;
   flex: none;
@@ -389,12 +383,28 @@ button {
 .below:has(.why-tog[aria-expanded='false']) {
   height: auto;
 }
+/* The row keeps a fixed height so the 3D view never jumps. When the steps don't fit (narrow
+   tablets), they scroll under a soft fade while the U-tube note stays pinned and readable. */
 .why {
   padding: 8px 14px 8px;
   font-size: 12px;
   line-height: 1.5;
   color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.why ol,
+.why-empty {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 12px), transparent);
+}
+.why-head,
+.why-legend {
+  flex: none;
 }
 .why-head {
   display: flex;
@@ -446,7 +456,7 @@ button {
   color: var(--muted);
 }
 .why-legend {
-  font-size: 11.5px;
+  font-size: 12px;
 }
 .hist {
   margin: 0;
@@ -480,7 +490,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 148px;
+  width: 132px;
 }
 .gauge {
   background: rgba(18, 26, 35, 0.82);
@@ -517,9 +527,6 @@ button {
   border-radius: 2px;
   background: #c9d4df;
   transition: width 0.1s linear;
-}
-.gauge-bar i.tbar {
-  background: linear-gradient(90deg, #3b82f6, #f59e0b, #ef4444);
 }
 .engine-fallback {
   position: absolute;
@@ -587,12 +594,6 @@ button {
 .scrub-ticks span {
   position: absolute;
   transform: translateX(-50%);
-}
-.time {
-  font-size: 12px;
-  color: var(--muted);
-  min-width: 78px;
-  text-align: right;
 }
 
 .panel {
@@ -744,16 +745,15 @@ tr.current td {
   opacity: 0.55;
 }
 /* Cycle analysis: the limit comparison leads; totals are plain type, no boxes. */
+/* One grid for both rows so the two bars start at the same x and compare by length alone. */
 .limit {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: max-content 1fr 64px;
+  gap: 8px 12px;
+  align-items: center;
 }
 .limit-row {
-  display: grid;
-  grid-template-columns: minmax(130px, auto) 1fr 64px;
-  gap: 12px;
-  align-items: center;
+  display: contents;
 }
 .limit-row .num {
   text-align: right;
@@ -826,6 +826,12 @@ tr.current td {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+.help-back {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 13, 19, 0.55);
+  z-index: 40;
 }
 .help {
   position: fixed;
@@ -983,7 +989,7 @@ tr.current td {
     white-space: nowrap;
   }
   .gauge-v {
-    font-size: 11.5px;
+    font-size: 12px;
     white-space: nowrap;
   }
   .gauge {
@@ -1022,6 +1028,9 @@ tr.current td {
   .playbar.stick {
     position: sticky;
   }
+  .app:has(.playbar.stick) .toast {
+    bottom: 128px;
+  }
   .playbar {
     bottom: 0;
     z-index: 5;
@@ -1031,9 +1040,6 @@ tr.current td {
   .scrub {
     order: 5;
     flex-basis: 100%;
-  }
-  .time {
-    display: none;
   }
   /* Phones keep the columns that answer "did it take heat, did it do work". */
   table {
@@ -1049,9 +1055,6 @@ tr.current td {
   }
   .tool {
     padding: 5px 9px 5px 7px;
-  }
-  .tool kbd {
-    display: none;
   }
   .tabpanel {
     padding: 12px 10px;
@@ -1109,7 +1112,8 @@ tr.current td {
 }
 
 /* The loop toggle is on by default; its pressed state is the icon colour, not a filled box. */
-.btn.loop[aria-pressed='true'] {
+.btn.loop[aria-pressed='true'],
+.appbar .btn[aria-pressed='true'] {
   background: var(--surface);
   border-color: var(--line);
 }
