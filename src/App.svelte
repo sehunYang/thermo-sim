@@ -97,7 +97,7 @@
 <div class="app" class:blank={!sim.start} bind:this={app}>
   <AppBar />
   <div class="stage">
-    <section class="graph-pane" aria-label="PV 그래프">
+    <section class="graph-pane" aria-label="그래프">
       <Toolbar />
       <PVGraph />
     </section>

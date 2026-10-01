@@ -20,6 +20,7 @@ import { currentView, type PlayState } from '../engine3d/view'
 import { state } from '../physics/processes'
 import { buildPreset, type PresetName } from '../presets/cycles'
 import type { SavedPath } from '../share/urlState'
+import type { PlaneId } from '../graph/views'
 
 interface Snapshot {
   start: { P: number; V: number } | null
@@ -42,6 +43,8 @@ export class Simulation {
   preset = $state<PresetName | ''>('')
   tool = $state<ProcessType>('isothermal')
   guides = $state(true)
+  /** Which plane the graph draws the path in. */
+  plane = $state<PlaneId>('PV')
   tab = $state<PanelTab>('table')
   toast = $state<{ msg: string; id: number } | null>(null)
   /** First-visit guide: 0 hidden, otherwise the 1-based step. */

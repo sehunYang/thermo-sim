@@ -2,6 +2,7 @@ import { R, temperature, type GasConfig, type GasState, type ProcessType } from 
 import { closeWith } from '../physics/close'
 import { LIMITS, isValidState, resolve, type ProcessPath } from '../physics/path'
 import { curveP, endState, stateBetween } from '../physics/processes'
+import { px as planePx, type Plane } from './views'
 
 /** SVG viewBox layout of the PV graph (viewBox 0 0 W H). */
 export const G = { L: 58, R: 18, T: 16, B: 46, W: 560, H: 440 } as const
@@ -100,13 +101,36 @@ export function computeGhost(opts: {
   py: number
   snapOff?: boolean
   path?: ProcessPath | null
+  /** The plane the pointer is in; P-V when absent. */
+  plane?: Plane
 }): Ghost {
   const { gas, tool: t, start: A, segmentCount, V, P, px, py, snapOff = false, path } = opts
+  const plane = opts.plane?.id === 'PV' ? undefined : opts.plane
+  const at = (s: { P: number; V: number }): [number, number] =>
+    plane ? planePx(plane, s.P, s.V) : [xV(s.V), yP(s.P)]
   let a = opts.a
   let end: number
   let bPV: { P: number; V: number }
   let far = false
-  if (t === 'isochoric') {
+  if (plane) {
+    // Another plane: the point on the tool's line nearest the pointer on screen, found along the
+    // process's own free value (P₂ for isochoric, V₂ otherwise) on a log scale, as S is.
+    const [lo, hi] = t === 'isochoric' ? [LIMITS.Pmin, LIMITS.Pmax] : [LIMITS.Vmin, LIMITS.Vmax]
+    let bestD = Infinity
+    let best = t === 'isochoric' ? a.P : a.V
+    for (let i = 0; i <= 600; i++) {
+      const u = lo * Math.pow(hi / lo, i / 600)
+      const [x, y] = at(endState(gas, t, a, u))
+      const d = Math.hypot(x - px, y - py)
+      if (d < bestD) {
+        bestD = d
+        best = u
+      }
+    }
+    end = t === 'isochoric' ? snapP(best, snapOff) : snapV(best, snapOff)
+    bPV = endState(gas, t, a, end)
+    far = plane.curved.includes(t) && bestD > FAR_PX
+  } else if (t === 'isochoric') {
     end = snapP(P, snapOff)
     bPV = { V: a.V, P: end }
   } else if (t === 'isobaric') {
@@ -135,7 +159,8 @@ export function computeGhost(opts: {
       t === 'isochoric'
         ? Math.abs(xV(a.V) - xV(A.V)) < 3
         : Math.abs(yP(curveP(gas, t, a.P, a.V, A.V)) - yP(A.P)) < 10
-    const nearA = Math.hypot(px - xV(A.V), py - yP(A.P)) < 30
+    const [ax, ay] = at(A)
+    const nearA = Math.hypot(px - ax, py - ay) < 30
     if (nearA && onCurve) {
       closing = true
       end = t === 'isochoric' ? A.P : A.V
