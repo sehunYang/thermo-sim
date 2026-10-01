@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { MONATOMIC } from '../../src/physics/gas'
-import { autoClose, closeWith, hasOverlap, meetCurve } from '../../src/physics/close'
+import { DIATOMIC, MONATOMIC } from '../../src/physics/gas'
+import { autoClose, closeWith, editEnd, hasOverlap, meetCurve } from '../../src/physics/close'
 import { analyzeCycle, isValidPath, resolve, type ProcessPath } from '../../src/physics/path'
 import { state } from '../../src/physics/processes'
-import { buildPreset } from '../../src/presets/cycles'
+import { PRESET_NAMES, buildPreset } from '../../src/presets/cycles'
 
 const gas = MONATOMIC
 
@@ -154,5 +154,62 @@ describe('autoClose', () => {
 
   it('does nothing on a closed path', () => {
     expect(autoClose(carnot)).toBeNull()
+  })
+})
+
+describe('editEnd', () => {
+  /** The cycle really returns to A along its last process, and its energy books balance. */
+  function expectClosedCycle(path: ProcessPath) {
+    const segs = resolve({ ...path, closed: false })
+    const end = segs[segs.length - 1].b
+    expect(end.P).toBeCloseTo(path.start.P, 0)
+    expect(end.V).toBeCloseTo(path.start.V, 1)
+    const r = resolve(path)
+    expect(r.reduce((s, x) => s + x.energy.dU, 0)).toBeCloseTo(0, 0)
+    const c = analyzeCycle(path)!
+    if (c.kind === 'engine') expect(c.efficiency).toBeLessThanOrEqual(c.carnotEfficiency + 1e-9)
+    else expect(c.cop).toBeLessThanOrEqual(c.carnotCop + 1e-9)
+  }
+
+  it('leaves every preset cycle closed', () => {
+    for (const g of [MONATOMIC, DIATOMIC])
+      for (const name of PRESET_NAMES) {
+        const p = buildPreset(name, g)
+        if (p.closed) expectClosedCycle(p)
+      }
+  })
+
+  it('moving B of a Carnot cycle refits D so the closing adiabat still reaches A', () => {
+    const p = buildPreset('carnot', gas)
+    const r = editEnd(p, 0, 25)
+    if (!('segments' in r)) throw new Error(r.refused)
+    const q = { ...p, segments: r.segments }
+    expect(q.segments[0].end).toBe(25)
+    expectClosedCycle(q)
+  })
+
+  it('moving B of a reverse Carnot cycle keeps COP at or under the Carnot limit', () => {
+    const p = buildPreset('revcarnot', gas)
+    const r = editEnd(p, 0, 18)
+    if (!('segments' in r)) throw new Error(r.refused)
+    expectClosedCycle({ ...p, segments: r.segments })
+  })
+
+  it('refuses moving the point before A off the closing curve', () => {
+    const p = buildPreset('carnot', gas)
+    expect(editEnd(p, 2, 18)).toEqual({ refused: 'open' })
+  })
+
+  it('refuses a segment of zero length and states out of range', () => {
+    const p = buildPreset('isothermal', gas)
+    expect(editEnd(p, 0, p.start.V)).toEqual({ refused: 'tiny' })
+    expect(editEnd(p, 0, 60)).toEqual({ refused: 'range' })
+  })
+
+  it('keeps edits that already close, like Otto C', () => {
+    const p = buildPreset('otto', gas)
+    const r = editEnd(p, 1, 400)
+    if (!('segments' in r)) throw new Error(r.refused)
+    expect(r.segments).toEqual(p.segments.map((s, i) => (i === 1 ? { ...s, end: 400 } : s)))
   })
 })

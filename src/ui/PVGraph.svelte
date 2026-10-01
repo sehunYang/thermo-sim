@@ -128,11 +128,16 @@
     hover = null
     queueMicrotask(() => host.querySelector<HTMLInputElement>('.vedit input')?.select())
   }
+  const REFUSED = {
+    range: '그 값이면 그래프 범위(0.5–50 L, 5–500 kPa, 50–2500 K)를 벗어나요',
+    tiny: '그 값이면 구간이 너무 짧아져요',
+    open: '그 값이면 같은 과정으로 A에 돌아올 수 없어요',
+  } as const
   function applyEdit(e: Event) {
     if (!vedit) return
     const el = e.currentTarget as HTMLInputElement
-    if (!sim.setEnd(vedit.i - 1, Number(el.value)))
-      sim.notify('그 값이면 뒤 구간이 범위를 벗어나요')
+    const no = sim.setEnd(vedit.i - 1, Number(el.value))
+    if (no) sim.notify(REFUSED[no])
   }
   function editKey(e: KeyboardEvent) {
     e.stopPropagation()

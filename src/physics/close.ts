@@ -226,3 +226,59 @@ export function autoClose(path: ProcessPath, metric: Metric = graphMetric): Clos
   }
   return best
 }
+
+/** Why an edit was refused: a state leaves the graph range, a segment shrinks to nothing, or a
+ * closed cycle can no longer end on A along its last process. */
+export type EditRefusal = 'range' | 'tiny' | 'open'
+
+/** The point before A already lies on the last process's curve through A (up to rounding). */
+function reachesStart(path: ProcessPath): boolean {
+  const segs = resolve(path)
+  const last = segs[segs.length - 1]
+  const type = last.segment.type
+  return Math.abs(invariant(path.gas, type, last.a) - invariant(path.gas, type, path.start)) < 2e-3
+}
+
+/**
+ * Set the free value of segment `index`. On a closed path every later segment keeps its own
+ * process, so the cycle must still run back onto A along the last one: when it no longer does,
+ * the segment before the last is moved along its own curve onto the last curve through A (the
+ * nearest such point), exactly as auto-complete closes a path. Returns the new segments, or why
+ * the edit is refused when no such repair keeps every process and every state valid.
+ */
+export function editEnd(
+  path: ProcessPath,
+  index: number,
+  end: number,
+): { segments: ProcessPath['segments'] } | { refused: EditRefusal } {
+  const set = (segs: ProcessPath['segments'], i: number, e: number) =>
+    segs.map((s, k) => (k === i ? { ...s, end: e } : s))
+  let segments = set(path.segments, index, end)
+  const check = (segs: ProcessPath['segments']): EditRefusal | null => {
+    const trial = { ...path, segments: segs }
+    if (!isValidPath(trial)) return 'range'
+    if (resolve(trial).some((r) => tooSmall(r.a, r.b))) return 'tiny'
+    return null
+  }
+  const n = segments.length
+  if (path.closed && n >= 2 && !reachesStart({ ...path, segments })) {
+    const k = n - 2
+    if (index >= k) return { refused: 'open' }
+    const before = resolve({ ...path, segments, closed: false })[k]
+    const roots = meetCurve(
+      path.gas,
+      before.segment.type,
+      before.a,
+      segments[n - 1].type,
+      path.start,
+    )
+      .map((e) => set(segments, k, e))
+      .filter((s) => check(s) == null)
+    if (!roots.length) return { refused: 'open' }
+    const was = path.segments[k].end
+    roots.sort((p, q) => Math.abs(p[k].end - was) - Math.abs(q[k].end - was))
+    segments = roots[0]
+  }
+  const bad = check(segments)
+  return bad ? { refused: bad } : { segments }
+}
