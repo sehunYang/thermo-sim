@@ -77,7 +77,7 @@
   <button
     class="btn speed"
     aria-label="재생 속도"
-    title="재생 속도 바꾸기"
+    title="누르면 {SPEEDS[(SPEEDS.indexOf(P.speed) + 1) % SPEEDS.length]}×"
     onclick={() => (sim.play.speed = SPEEDS[(SPEEDS.indexOf(P.speed) + 1) % SPEEDS.length] ?? 1)}
     ><span class="num">{P.speed}×</span></button
   >

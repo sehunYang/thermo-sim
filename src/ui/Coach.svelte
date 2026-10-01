@@ -67,10 +67,12 @@
     return () => tgt?.classList.remove('coach-target')
   })
 
-  function close() {
+  /** A keyboard finish leaves focus on the graph, where the first step begins; a pointer finish
+   * leaves nothing ringed, since the hand is already on its way to the graph. */
+  function close(e?: Event) {
     sim.coach = 0
-    // Leave the keyboard where the first step begins.
-    document.querySelector<SVGElement>('.graph svg')?.focus()
+    if (e instanceof MouseEvent && e.detail > 0) (document.activeElement as HTMLElement)?.blur()
+    else document.querySelector<SVGElement>('.graph svg')?.focus()
   }
   function onKey(e: KeyboardEvent) {
     if (e.key === 'Escape') close()
@@ -82,7 +84,7 @@
     class="coach"
     role="presentation"
     onkeydown={onKey}
-    onclick={(e) => e.target === e.currentTarget && close()}
+    onclick={(e) => e.target === e.currentTarget && close(e)}
   >
     <div
       class="coach-card"
@@ -105,7 +107,7 @@
             class="run"
             bind:this={next}
             style="min-height:34px;padding:6px 14px"
-            onclick={() => (sim.coach < STEPS.length ? sim.coach++ : close())}
+            onclick={(e) => (sim.coach < STEPS.length ? sim.coach++ : close(e))}
             >{sim.coach < STEPS.length ? '다음' : '시작하기'}</button
           >
         </div>

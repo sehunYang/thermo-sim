@@ -14,7 +14,7 @@
   --accent-ink: #ffffff;
   --accent-soft: #e3ecf9;
   --p-isochoric: #7148d1;
-  --p-isobaric: #0f8c73;
+  --p-isobaric: #0a6b57;
   --p-isothermal: #0b84a5;
   --p-adiabatic: #c73d66;
   /* Colour has one meaning each. Primaries appear only for: the four processes (lines, swatches,
@@ -46,7 +46,7 @@
     --accent-ink: #0c1218;
     --accent-soft: #1b2c42;
     --p-isochoric: #a286f2;
-    --p-isobaric: #33c2a2;
+    --p-isobaric: #9be8c9;
     --p-isothermal: #4fc3e3;
     --p-adiabatic: #ee6e92;
     --heat: #ffa060;
@@ -71,7 +71,7 @@
   --accent-ink: #0c1218;
   --accent-soft: #1b2c42;
   --p-isochoric: #a286f2;
-  --p-isobaric: #33c2a2;
+  --p-isobaric: #9be8c9;
   --p-isothermal: #4fc3e3;
   --p-adiabatic: #ee6e92;
   --heat: #ffa060;
@@ -420,7 +420,6 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 12px), transparent);
 }
 .why-head {
   flex: none;
@@ -837,9 +836,12 @@ td.st {
 
 .toast {
   position: fixed;
-  left: 50%;
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: fit-content;
+  max-width: min(560px, calc(100% - 32px));
   bottom: 24px;
-  transform: translateX(-50%);
   background: var(--ink);
   color: var(--surface);
   padding: 8px 14px;
@@ -1004,9 +1006,8 @@ td.st {
   .why ol {
     grid-template-columns: 1fr;
   }
-  .why ol,
-  .why-empty {
-    mask-image: none;
+  .graph-empty p {
+    font-size: 14px;
   }
   .graph {
     height: 330px;
@@ -1141,6 +1142,14 @@ td.st {
   .btn.icon {
     min-width: 44px;
     justify-content: center;
+  }
+  .btn,
+  .tool,
+  .run,
+  .select,
+  .hud-reset,
+  .btn.icon {
+    min-height: 44px;
   }
   .scrub input {
     height: 44px;
