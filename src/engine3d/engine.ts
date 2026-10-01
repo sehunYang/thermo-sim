@@ -191,11 +191,8 @@ export class Engine {
     this.renderer.setSize(w, h, false)
     const a = w / h
     this.camera.aspect = a
-    // Narrower views pull back a little, and the engine is nudged left so the gauge column on the
-    // right never covers the U-tube labels. Phones stack the gauges above instead.
+    // Narrower views pull back a little so the U-tube labels keep clear of the frame.
     this.dist = a < 1.1 ? 12.5 : 9 + Math.max(0, Math.min(0.6, 1.9 - a)) * 2.5
-    if (a < 1.1) this.camera.clearViewOffset()
-    else this.camera.setViewOffset(w, h, Math.min(80, w * 0.08), 0, w, h)
     this.camera.updateProjectionMatrix()
   }
 
@@ -605,8 +602,9 @@ export class Engine {
     labOut.setText('바깥 쪽', '', '#E8C070')
     mano.add(labOut)
     this.labDh = makeLabel()
-    this.labDh.scale.set(1.2, 0.4, 1)
-    this.labDh.setText('Δh', '', '#FFD08A')
+    // The drawing exaggerates the level difference; say so right where the difference is drawn.
+    this.labDh.scale.set(1.7, 0.565, 1)
+    this.labDh.setText('Δh', '크게 그림', '#FFD08A')
     mano.add(this.labDh)
     this.dhLine = new THREE.Mesh(
       new THREE.BoxGeometry(0.03, 1, 0.03).translate(0, 0.5, 0),
@@ -703,7 +701,7 @@ export class Engine {
       this.dhLine.position.set(xm, Math.min(yl, yr), M.MZ)
       this.dhLine.scale.y = Math.abs(yr - yl) || 0.001
       this.labDh.visible = this.dhLine.visible
-      this.labDh.position.set(xm + 0.2, (yl + yr) / 2, M.MZ)
+      this.labDh.position.set(xm + 0.45, (yl + yr) / 2, M.MZ)
     }
 
     // Heat: which reservoir, which way, how strong.

@@ -331,36 +331,6 @@ button {
   color: #e2e9f0;
   font-size: 12px;
 }
-.hud-proc {
-  position: absolute;
-  left: 12px;
-  top: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: flex-start;
-}
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  background: rgba(18, 26, 35, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  padding: 4px 11px 4px 9px;
-  font-weight: 600;
-  font-size: 13px;
-  backdrop-filter: blur(4px);
-}
-.chip .dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-}
-.chip.small {
-  font-size: 12px;
-  font-weight: 500;
-}
 .engine-col {
   display: flex;
   flex-direction: column;
@@ -379,9 +349,6 @@ button {
   height: 168px;
   border-top: 1px solid var(--line);
   background: var(--surface-2);
-}
-.below:has(.why-tog[aria-expanded='false']) {
-  height: auto;
 }
 /* The row keeps a fixed height so the 3D view never jumps. When the steps don't fit (narrow
    tablets), they scroll under a soft fade while the U-tube note stays pinned and readable. */
@@ -402,8 +369,7 @@ button {
   overflow: auto;
   mask-image: linear-gradient(to bottom, #000 calc(100% - 12px), transparent);
 }
-.why-head,
-.why-legend {
+.why-head {
   flex: none;
 }
 .why-head {
@@ -414,13 +380,34 @@ button {
 .why-head b {
   font-size: 13px;
 }
-.why-tog {
-  border: 0;
-  background: transparent;
-  color: var(--accent);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 2px 4px;
+.why-head {
+  justify-content: flex-start;
+  gap: 12px;
+  min-height: 22px;
+}
+.why-proc {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.why-proc .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.why-heat {
+  color: var(--muted);
+}
+/* The gas state, read straight off the scene: no box, no bars. */
+.hud-state {
+  position: absolute;
+  left: 14px;
+  bottom: 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+  white-space: pre;
+  color: #e2e9f0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 .why ol {
   margin: 4px 0 0;
@@ -450,13 +437,9 @@ button {
   place-items: center;
   margin-top: 2px;
 }
-.why-empty,
-.why-legend {
+.why-empty {
   margin: 4px 0 0;
   color: var(--muted);
-}
-.why-legend {
-  font-size: 12px;
 }
 .hist {
   margin: 0;
@@ -482,51 +465,6 @@ button {
   width: 100%;
   margin: 4px 0 2px;
   background: var(--engine-bg);
-}
-.gauges {
-  position: absolute;
-  right: 12px;
-  top: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 132px;
-}
-.gauge {
-  background: rgba(18, 26, 35, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 9px;
-  padding: 6px 9px;
-  backdrop-filter: blur(4px);
-}
-.gauge-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 6px;
-}
-.gauge-k {
-  color: #91a2b3;
-  font-size: 11px;
-}
-.gauge-v {
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 500;
-}
-.gauge-bar {
-  height: 4px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.1);
-  margin-top: 5px;
-  overflow: hidden;
-}
-.gauge-bar i {
-  display: block;
-  height: 100%;
-  border-radius: 2px;
-  background: #c9d4df;
-  transition: width 0.1s linear;
 }
 .engine-fallback {
   position: absolute;
@@ -967,34 +905,6 @@ tr.current td {
   .appbar {
     padding: 8px 10px;
   }
-  .gauges {
-    left: 8px;
-    right: 8px;
-    top: auto;
-    bottom: 8px;
-    width: auto;
-    flex-direction: row;
-    gap: 4px;
-  }
-  .gauges .gauge {
-    flex: 1;
-    min-width: 0;
-  }
-  .gauge-top {
-    flex-direction: column;
-    gap: 0;
-  }
-  .gauge-k {
-    font-size: 10px;
-    white-space: nowrap;
-  }
-  .gauge-v {
-    font-size: 12px;
-    white-space: nowrap;
-  }
-  .gauge {
-    padding: 4px 7px;
-  }
   .engine-col {
     order: -1;
     border-bottom: 1px solid var(--line);
@@ -1007,13 +917,6 @@ tr.current td {
   .why {
     padding: 8px 10px;
     font-size: 12px;
-  }
-  #hudWork {
-    display: none;
-  }
-  .hud .hud-reset {
-    top: 10px;
-    bottom: auto;
   }
   .below {
     grid-template-columns: 1fr;
@@ -1088,7 +991,6 @@ tr.current td {
   .select,
   .tab,
   .endin,
-  .why-tog,
   .hud-reset,
   .linkish {
     min-height: 44px;
