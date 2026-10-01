@@ -8,10 +8,14 @@ import {
 import {
   analyzeCycle,
   isValidState,
+  reservoirSides,
   resolve,
+  temperatureRange,
   type ProcessPath,
   type Segment,
 } from '../physics/path'
+import { SEGMENT_SECONDS, easeS, invEase } from '../physics/timeline'
+import { currentView, type PlayState } from '../engine3d/view'
 import { state } from '../physics/processes'
 import { buildPreset, type PresetName } from '../presets/cycles'
 
@@ -56,6 +60,113 @@ export class Simulation {
         : null,
   )
   cycle = $derived(this.path ? analyzeCycle(this.path) : null)
+  sides = $derived(this.path ? reservoirSides(this.path) : [])
+  trange = $derived(this.path ? temperatureRange(this.path) : null)
+  fridge = $derived(this.cycle?.kind === 'refrigerator')
+
+  play = $state<PlayState>({
+    active: false,
+    playing: false,
+    seg: 0,
+    s: 0,
+    speed: 1,
+    loop: true,
+    done: false,
+  })
+  view = $derived(
+    currentView({
+      gas: this.gas,
+      segs: this.resolved,
+      sides: this.sides,
+      play: this.play,
+      lastState: this.lastState,
+      tool: this.tool,
+    }),
+  )
+
+  /** Whole-path progress 0..1 (each segment takes an equal share). */
+  get progress() {
+    const n = this.resolved.length
+    return n ? (this.play.seg + this.play.s) / n : 0
+  }
+  get totalSeconds() {
+    return (this.resolved.length * SEGMENT_SECONDS) / this.play.speed
+  }
+
+  stopPlay() {
+    Object.assign(this.play, { active: false, playing: false, seg: 0, s: 0, done: false })
+  }
+
+  togglePlay() {
+    const P = this.play
+    if (!this.resolved.length) return
+    if (P.playing) P.playing = false
+    else {
+      if (!P.active || P.done) Object.assign(P, { seg: 0, s: 0, done: false })
+      P.active = true
+      P.playing = true
+    }
+  }
+
+  rewind() {
+    Object.assign(this.play, {
+      seg: 0,
+      s: 0,
+      done: false,
+      active: this.resolved.length > 0,
+      playing: false,
+    })
+  }
+
+  nextSegment() {
+    const n = this.resolved.length
+    if (!n) return
+    const P = this.play
+    P.active = true
+    P.playing = false
+    if (P.seg < n - 1) {
+      P.seg++
+      P.s = 0
+      P.done = false
+    } else {
+      P.s = 1
+      P.done = true
+    }
+  }
+
+  /** Jump to a whole-path progress f (scrubbing); pauses playback. */
+  seek(f: number) {
+    const n = this.resolved.length
+    if (!n) return
+    const x = Math.max(0, Math.min(1, f)) * n
+    const seg = Math.min(n - 1, Math.floor(x))
+    Object.assign(this.play, { seg, s: x - seg, active: true, done: false, playing: false })
+  }
+
+  /** Advance playback by dt seconds of wall time (smoothstep timing within each segment). */
+  tick(dt: number) {
+    const P = this.play
+    const n = this.resolved.length
+    if (!P.playing || !n) return
+    let tau = invEase(P.s) + (dt * P.speed) / SEGMENT_SECONDS
+    let seg = P.seg
+    while (tau >= 1) {
+      if (seg < n - 1) {
+        tau -= 1
+        seg++
+      } else if (this.closed && P.loop) {
+        tau -= 1
+        seg = 0
+      } else {
+        tau = 1
+        P.playing = false
+        P.done = true
+        break
+      }
+    }
+    P.seg = seg
+    P.s = easeS(tau)
+  }
 
   get canUndo() {
     return this.#hist.length > 0
@@ -81,6 +192,7 @@ export class Simulation {
     this.closed = s.closed
   }
   #push() {
+    this.stopPlay()
     this.#hist = [...this.#hist.slice(-(HISTORY_LIMIT - 1)), this.#snap()]
     this.#fut = []
   }
@@ -88,6 +200,7 @@ export class Simulation {
   undo() {
     const prev = this.#hist.at(-1)
     if (!prev) return
+    this.stopPlay()
     this.#fut = [...this.#fut, this.#snap()]
     this.#hist = this.#hist.slice(0, -1)
     this.#restore(prev)
@@ -96,6 +209,7 @@ export class Simulation {
   redo() {
     const next = this.#fut.at(-1)
     if (!next) return
+    this.stopPlay()
     this.#hist = [...this.#hist, this.#snap()]
     this.#fut = this.#fut.slice(0, -1)
     this.#restore(next)
@@ -151,9 +265,11 @@ export class Simulation {
     this.segments = p.segments
     this.closed = p.closed
     this.preset = name
+    this.play.loop = p.closed
   }
 
   setGas(kind: 'mono' | 'di') {
+    this.stopPlay()
     this.gas = kind === 'di' ? DIATOMIC : MONATOMIC
     // A preset is defined by its temperatures, so rebuild it for the new γ.
     if (this.preset) {

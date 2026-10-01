@@ -2,6 +2,7 @@
   import type { ProcessType } from './physics/gas'
   import { sim } from './store/simulation.svelte'
   import AppBar from './ui/AppBar.svelte'
+  import EngineView from './ui/EngineView.svelte'
   import Panel from './ui/Panel.svelte'
   import PVGraph from './ui/PVGraph.svelte'
   import Toast from './ui/Toast.svelte'
@@ -38,14 +39,7 @@
       <Toolbar />
       <PVGraph />
     </section>
-    <div class="engine-col">
-      <section class="engine-pane" aria-label="가상 열기관">
-        <div class="engine-soon">
-          <b>가상 열기관</b>
-          <span>피스톤·입자·열 흐름 3D 장면은 다음 단계에서 이 자리에 들어옵니다.</span>
-        </div>
-      </section>
-    </div>
+    <EngineView />
   </div>
   <Panel />
   <Toast />
