@@ -434,7 +434,7 @@
             x={xV(VMAX) - 4}
             y={yP(Pe) - 4}
             text-anchor="end"
-            font-size="10"
+            font-size="12"
             fill="var(--muted)"
             opacity={sim.resolved.length ? 0.5 : 1}
             font-family={mono}>{T} K</text
@@ -457,7 +457,7 @@
         x={xV(v)}
         y={G.T + PH + 16}
         text-anchor="middle"
-        font-size="11"
+        font-size="12"
         fill="var(--muted)"
         font-family={mono}>{v}</text
       >
@@ -467,7 +467,7 @@
         x={G.L - 8}
         y={yP(p) + 4}
         text-anchor="end"
-        font-size="11"
+        font-size="12"
         fill="var(--muted)"
         font-family={mono}>{p}</text
       >
@@ -605,7 +605,7 @@
       <text
         x={v.lx}
         y={v.y - 8}
-        font-size="13"
+        font-size="14"
         font-weight="700"
         fill="var(--ink)"
         text-anchor={v.anchor}>{v.label}</text

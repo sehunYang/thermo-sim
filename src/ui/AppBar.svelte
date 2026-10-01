@@ -132,18 +132,18 @@
           height="14"
           rx="1.5"
           fill="none"
-          stroke="#EDF1F4"
+          stroke="currentColor"
           stroke-width="1.5"
-        /><rect x="4.8" y="6" width="8.4" height="2" fill="#EDF1F4" /><circle
+        /><rect x="4.8" y="6" width="8.4" height="2" fill="currentColor" /><circle
           cx="7"
           cy="11.5"
           r="1"
-          fill="#EDF1F4"
-        /><circle cx="11" cy="13" r="1" fill="#EDF1F4" /><circle
+          fill="currentColor"
+        /><circle cx="11" cy="13" r="1" fill="currentColor" /><circle
           cx="10"
           cy="10"
           r="1"
-          fill="#EDF1F4"
+          fill="currentColor"
         /></svg
       >
     </div>
