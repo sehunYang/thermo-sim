@@ -447,7 +447,6 @@
             text-anchor="end"
             font-size="12"
             fill="var(--muted)"
-            opacity={sim.resolved.length ? 0.5 : 1}
             font-family={mono}>{T} K</text
           >
         {/if}
@@ -597,13 +596,7 @@
           tabindex="0"
           aria-label="{v.label} 값 바꾸기"
           onkeydown={(e) => vertexKey(e, v.i)}
-          ><title>{v.label} 값 바꾸기</title><circle
-            class="vhit"
-            cx={v.x}
-            cy={v.y}
-            r="14"
-            fill="transparent"
-          /><circle
+          ><circle class="vhit" cx={v.x} cy={v.y} r="14" fill="transparent" /><circle
             class="vdot"
             cx={v.x}
             cy={v.y}
