@@ -142,5 +142,21 @@
         /></svg
       ></button
     >
+    <button
+      class="btn icon"
+      title="사용 안내"
+      aria-label="사용 안내"
+      onclick={() => (sim.coach = 1)}
+    >
+      <svg width="16" height="16" viewBox="0 0 16 16"
+        ><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.4" /><path
+          d="M6.3 6.3a1.8 1.8 0 113 1.3c-.7.5-1.3.8-1.3 1.7"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.4"
+          stroke-linecap="round"
+        /><circle cx="8" cy="11.4" r=".8" fill="currentColor" /></svg
+      ></button
+    >
   </div>
 </div>

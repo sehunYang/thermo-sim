@@ -2,7 +2,19 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: 'tests/e2e',
-  use: { baseURL: 'http://localhost:4173/thermo-sim/' },
+  use: {
+    baseURL: 'http://localhost:4173/thermo-sim/',
+    // Tests start as returning visitors so the first-visit guide does not cover the app.
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: 'http://localhost:4173',
+          localStorage: [{ name: 'thermo-sim:coach-seen', value: '1' }],
+        },
+      ],
+    },
+  },
   webServer: {
     command: 'npm run build && npm run preview -- --port 4173 --strictPort',
     url: 'http://localhost:4173/thermo-sim/',

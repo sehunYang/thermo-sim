@@ -43,6 +43,8 @@ export class Simulation {
   guides = $state(true)
   tab = $state<PanelTab>('table')
   toast = $state<{ msg: string; id: number } | null>(null)
+  /** First-visit guide: 0 hidden, otherwise the 1-based step. */
+  coach = $state(0)
 
   #hist = $state<Snapshot[]>([])
   #fut = $state<Snapshot[]>([])
@@ -142,6 +144,14 @@ export class Simulation {
     const x = Math.max(0, Math.min(1, f)) * n
     const seg = Math.min(n - 1, Math.floor(x))
     Object.assign(this.play, { seg, s: x - seg, active: true, done: false, playing: false })
+  }
+
+  /** Step the paused playhead by a small slice of time (keyboard ← / →). */
+  step(dir: 1 | -1) {
+    const n = this.resolved.length
+    if (!n) return
+    const f = this.play.active ? this.progress : 0
+    this.seek(f + (dir * 0.01) / n)
   }
 
   /** Advance playback by dt seconds of wall time (smoothstep timing within each segment). */
