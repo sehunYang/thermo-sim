@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte'
   import { R, temperature } from '../physics/gas'
   import { LIMITS } from '../physics/path'
   import { stateBetween } from '../physics/processes'
@@ -100,10 +101,15 @@
   let vedit = $state<{ i: number; x: number; y: number; flip: boolean } | null>(null)
   let overV = $state(false)
   let vpress = -1
-  function vertexAt(px: number, py: number) {
+  /** Hit radius around a vertex: 22 screen px for a finger, 12 for a mouse, in SVG units. */
+  function hitR(coarse: boolean) {
+    const k = svg?.getScreenCTM()?.a || 1
+    return (coarse ? 22 : 12) / k
+  }
+  function vertexAt(px: number, py: number, coarse = false) {
     if (P.playing) return -1
     let best = -1
-    let bd = 10
+    let bd = hitR(coarse)
     for (const v of vertices) {
       const d = Math.hypot(v.x - px, v.y - py)
       if (v.i > 0 && d < bd) [best, bd] = [v.i, d]
@@ -139,13 +145,19 @@
     const no = sim.setEnd(vedit.i - 1, Number(el.value))
     if (no) sim.notify(REFUSED[no])
   }
+  /** Back to the vertex that was edited, so Tab and Enter carry on from there. */
+  async function refocus(i: number) {
+    vedit = null
+    await tick()
+    svg.querySelector<SVGElement>(`.vertex[data-i="${i}"]`)?.focus()
+  }
   function editKey(e: KeyboardEvent) {
     e.stopPropagation()
-    if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur()
-    else if (e.key === 'Escape') {
-      vedit = null
-      svg.focus()
-    }
+    if (!vedit) return
+    if (e.key === 'Enter') {
+      applyEdit(e)
+      refocus(vedit.i)
+    } else if (e.key === 'Escape') refocus(vedit.i)
   }
   function vertexKey(e: KeyboardEvent, i: number) {
     if (e.key !== 'Enter' && e.key !== ' ') return
@@ -185,16 +197,6 @@
     tool === 'isothermal'
       ? `등온선은 오른쪽으로 갈수록 내려가요(PV 일정) · 선 위의 가장 가까운 점에 ${verb}`
       : `단열선은 등온선보다 가파르게 내려가요 · 선 위의 가장 가까운 점에 ${verb}`
-
-  function openPresets() {
-    const sel = document.querySelector<HTMLSelectElement>('select[aria-label="예시 경로"]')
-    sel?.focus()
-    try {
-      sel?.showPicker()
-    } catch {
-      // Older browsers: focusing the list is enough.
-    }
-  }
 
   // Drop a stale preview when the path or tool changes underneath it.
   $effect(() => {
@@ -265,8 +267,11 @@
   }
 
   function onDown(e: PointerEvent) {
-    const v = vertexAt(...svgXY(e))
+    const v = vertexAt(...svgXY(e), e.pointerType !== 'mouse')
     if (v > 0) {
+      // No compatibility mouse events: their focus would land on the circle and close the field
+      // the tap is about to open.
+      e.preventDefault()
       vpress = v
       return
     }
@@ -311,7 +316,7 @@
 
   function onUp(e: PointerEvent) {
     if (vpress > 0) {
-      if (vertexAt(...svgXY(e)) === vpress) openEdit(vpress)
+      if (vertexAt(...svgXY(e), e.pointerType !== 'mouse') === vpress) openEdit(vpress)
       vpress = -1
       return
     }
@@ -335,9 +340,10 @@
     const ctm = svg.getScreenCTM()
     const r = host.getBoundingClientRect()
     if (ctm) {
-      const x = xV(V) * ctm.a + ctm.e - r.left
-      const y = yP(P) * ctm.d + ctm.f - r.top
-      readout = { x, y, flip: x > r.width - 200, text: say(V, P) }
+      const z = zoom()
+      const x = (xV(V) * ctm.a + ctm.e - r.left) / z
+      const y = (yP(P) * ctm.d + ctm.f - r.top) / z
+      readout = { x, y, flip: x > r.width / z - 200, text: say(V, P) }
     }
     ghost = ghostAt(xV(V), yP(P), false)
     if (ghost && readout) readout.text = say(ghost.b.V, ghost.b.P)
@@ -584,18 +590,28 @@
     {#each vertices as v (v.label)}
       {#if v.i > 0 && !P.playing}
         <!-- A vertex after A is a button: it opens the field for that segment's end value. -->
-        <circle
+        <g
           class="vertex"
-          cx={v.x}
-          cy={v.y}
-          r="4.5"
-          fill="var(--surface)"
-          stroke="var(--ink)"
-          stroke-width="1.6"
+          data-i={v.i}
           role="button"
           tabindex="0"
           aria-label="{v.label} 값 바꾸기"
-          onkeydown={(e) => vertexKey(e, v.i)}><title>{v.label} 값 바꾸기</title></circle
+          onkeydown={(e) => vertexKey(e, v.i)}
+          ><title>{v.label} 값 바꾸기</title><circle
+            class="vhit"
+            cx={v.x}
+            cy={v.y}
+            r="14"
+            fill="transparent"
+          /><circle
+            class="vdot"
+            cx={v.x}
+            cy={v.y}
+            r="5.5"
+            fill="var(--ink)"
+            stroke="var(--surface)"
+            stroke-width="2"
+          /></g
         >
       {:else}
         <circle
@@ -618,12 +634,12 @@
     {/each}
 
     {#if marker}
-      <circle cx={xV(marker.V)} cy={yP(marker.P)} r="11" fill="var(--accent)" fill-opacity=".2" />
+      <circle cx={xV(marker.V)} cy={yP(marker.P)} r="13" fill="var(--ink)" fill-opacity=".16" />
       <circle
         cx={xV(marker.V)}
         cy={yP(marker.P)}
-        r="6"
-        fill="var(--accent)"
+        r="7"
+        fill="var(--ink)"
         stroke="var(--surface)"
         stroke-width="2"
       />
@@ -654,7 +670,6 @@
   {#if !sim.start}
     <div class="graph-empty">
       <p>그래프를 눌러 기체의 처음 상태 A를 찍으세요</p>
-      <button class="linkish" onclick={openPresets}>또는 예시 불러오기</button>
     </div>
   {/if}
   <span class="sr-only" id="graph-keys"

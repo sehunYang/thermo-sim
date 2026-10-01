@@ -112,3 +112,24 @@ test('pressing a vertex edits its value in place', async ({ page }) => {
   // The process still holds: the isotherm keeps T, so A→B stays 500→500 K.
   await expect(page.locator('tbody tr').first().locator('td.st')).toContainText('500→500')
 })
+
+test('a tap or click on a vertex opens its field, and Enter returns to the vertex', async ({
+  page,
+}, info) => {
+  await page.goto('./')
+  await page.getByLabel('예시 경로').selectOption('isothermal')
+  const B = page.getByRole('button', { name: 'B 값 바꾸기' })
+  await B.scrollIntoViewIfNeeded()
+  if (info.project.use.hasTouch) await B.tap()
+  else await B.click()
+  const field = page.locator('.vedit input')
+  await expect(field).toBeFocused()
+  // The field must survive the events that follow a tap.
+  await page.waitForTimeout(300)
+  await expect(field).toBeFocused()
+  await field.fill('25')
+  await page.keyboard.press('Enter')
+  await expect(field).toHaveCount(0)
+  await expect(page.locator('tbody tr').first().locator('td.st')).toContainText('10.0→25.0')
+  await expect(B).toBeFocused()
+})

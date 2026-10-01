@@ -37,6 +37,15 @@
   }
   restore()
 
+  // Before A, the scene, playbar and panel only preview what is coming: dimmed and inert, so
+  // nothing half-visible can be pressed or tabbed to.
+  let app: HTMLDivElement
+  $effect(() => {
+    const off = !sim.start
+    for (const el of app.querySelectorAll<HTMLElement>('.engine-col, .playbar, .panel'))
+      el.inert = off
+  })
+
   // Show the two-step guide once, on the first visit.
   const SEEN_KEY = 'thermo-sim:coach-seen'
   try {
@@ -85,7 +94,7 @@
 <svelte:window onkeydown={onKey} />
 
 <!-- Before A exists there is one thing to do; everything but the graph steps back. -->
-<div class="app" class:blank={!sim.start}>
+<div class="app" class:blank={!sim.start} bind:this={app}>
   <AppBar />
   <div class="stage">
     <section class="graph-pane" aria-label="PV 그래프">

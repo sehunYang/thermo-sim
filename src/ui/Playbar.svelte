@@ -81,22 +81,4 @@
     onclick={() => (sim.play.speed = SPEEDS[(SPEEDS.indexOf(P.speed) + 1) % SPEEDS.length] ?? 1)}
     ><span class="num">{P.speed}×</span></button
   >
-  <button
-    class="btn icon loop"
-    aria-pressed={P.loop}
-    title="반복 재생"
-    aria-label="반복 재생"
-    onclick={() => (sim.play.loop = !sim.play.loop)}
-  >
-    <svg width="16" height="16" viewBox="0 0 16 16"
-      ><path
-        d="M3 8a5 5 0 018.5-3.5L13 6M13 2.5V6H9.5M13 8a5 5 0 01-8.5 3.5L3 10M3 13.5V10h3.5"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.4"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      /></svg
-    ></button
-  >
 </div>
