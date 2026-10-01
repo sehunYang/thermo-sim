@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ProcessType } from './physics/gas'
+  import { STORAGE_KEY, decode, encode, readHash } from './share/urlState'
   import { sim } from './store/simulation.svelte'
   import AppBar from './ui/AppBar.svelte'
   import EngineView from './ui/EngineView.svelte'
@@ -15,6 +16,34 @@
     '3': 'isothermal',
     '4': 'adiabatic',
   }
+
+  // Restore a shared link first, then the last autosaved path, before the autosave effect runs.
+  function restore() {
+    const shared = readHash(location.hash)
+    if (shared) {
+      sim.load(shared, false)
+      sim.notify('공유 링크의 경로를 불러왔어요')
+      return
+    }
+    try {
+      const text = localStorage.getItem(STORAGE_KEY)
+      const saved = text ? decode(text) : null
+      if (saved) sim.load(saved, false)
+    } catch {
+      // Storage can be blocked (private mode); the app works without it.
+    }
+  }
+  restore()
+
+  $effect(() => {
+    const saved = sim.saved
+    try {
+      if (saved) localStorage.setItem(STORAGE_KEY, encode(saved))
+      else localStorage.removeItem(STORAGE_KEY)
+    } catch {
+      // Ignore: autosave is a convenience.
+    }
+  })
 
   function onKey(e: KeyboardEvent) {
     const target = e.target as HTMLElement

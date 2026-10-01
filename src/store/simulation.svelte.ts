@@ -18,6 +18,7 @@ import { SEGMENT_SECONDS, easeS, invEase } from '../physics/timeline'
 import { currentView, type PlayState } from '../engine3d/view'
 import { state } from '../physics/processes'
 import { buildPreset, type PresetName } from '../presets/cycles'
+import type { SavedPath } from '../share/urlState'
 
 interface Snapshot {
   start: { P: number; V: number } | null
@@ -266,6 +267,29 @@ export class Simulation {
     this.closed = p.closed
     this.preset = name
     this.play.loop = p.closed
+  }
+
+  /** The drawn path in its saved form (for share links and autosave), or null when empty. */
+  get saved(): SavedPath | null {
+    if (!this.start) return null
+    return {
+      gas: this.gas.gamma < 1.5 ? 'di' : 'mono',
+      start: { ...this.start },
+      segments: this.segments.map(({ type, end }) => ({ type, end })),
+      closed: this.closed,
+    }
+  }
+
+  /** Replace the path with a saved one; record = false skips undo history (start-up restore). */
+  load(saved: SavedPath, record = true) {
+    if (record) this.#push()
+    else this.stopPlay()
+    this.gas = saved.gas === 'di' ? DIATOMIC : MONATOMIC
+    this.start = { ...saved.start }
+    this.segments = saved.segments.map((s) => ({ ...s, id: newId() }))
+    this.closed = saved.closed
+    this.preset = ''
+    this.play.loop = saved.closed
   }
 
   setGas(kind: 'mono' | 'di') {
