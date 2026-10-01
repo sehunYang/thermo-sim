@@ -17,5 +17,5 @@ test('the drawn path survives a reload', async ({ page }) => {
 
 test('a broken link is ignored', async ({ page }) => {
   await page.goto('./#p=garbage')
-  await expect(page.getByText('그래프를 눌러 시작 상태 A를 찍으세요')).toBeVisible()
+  await expect(page.getByText('그래프를 눌러 기체의 처음 상태 A를 찍으세요')).toBeVisible()
 })

@@ -4,7 +4,7 @@
 
   const n = $derived(sim.resolved.length)
   const P = $derived(sim.play)
-  const label = $derived(P.playing ? '일시정지' : P.active && !P.done ? '계속' : '실행')
+  const label = $derived(P.playing ? '일시정지' : '실행')
   const ticks = $derived(
     n
       ? Array.from({ length: n + 1 }, (_, i) => ({
@@ -84,9 +84,10 @@
     </select></label
   >
   <button
-    class="btn"
+    class="btn icon loop"
     aria-pressed={P.loop}
     title="반복 재생"
+    aria-label="반복 재생"
     onclick={() => (sim.play.loop = !sim.play.loop)}
   >
     <svg width="16" height="16" viewBox="0 0 16 16"
@@ -98,8 +99,8 @@
         stroke-linecap="round"
         stroke-linejoin="round"
       /></svg
-    ><span class="hide-sm">반복</span>
-  </button>
+    ></button
+  >
   <span class="time num"
     >{(sim.progress * sim.totalSeconds).toFixed(1)} / {sim.totalSeconds.toFixed(1)} s</span
   >

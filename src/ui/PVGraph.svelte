@@ -1,7 +1,7 @@
 <script lang="ts">
   import { R, temperature } from '../physics/gas'
   import { LIMITS } from '../physics/path'
-  import { energy, stateBetween } from '../physics/processes'
+  import { stateBetween } from '../physics/processes'
   import {
     G,
     PH,
@@ -62,14 +62,8 @@
     const r = sim.resolved[cur]
     if (r.segment.type === 'isochoric' || P.s <= 0.001) return null
     const pts = sampleSegment(sim.gas, r.segment.type, r.a, r.b, 0, P.s, 40)
-    const W = energy(
-      sim.gas,
-      r.segment.type,
-      r.a,
-      stateBetween(sim.gas, r.segment.type, r.a, r.b, P.s),
-    ).W
     const poly: Pt[] = [...pts, [pts[pts.length - 1][0], G.T + PH], [pts[0][0], G.T + PH]]
-    return { d: pathD(poly) + 'z', col: W >= 0 ? 'var(--work-pos)' : 'var(--work-neg)' }
+    return { d: pathD(poly) + 'z' }
   })
   const marker = $derived(
     cur >= 0
@@ -94,15 +88,11 @@
     })
   })
 
+  // One line of guidance while drawing; during playback the graph and the 3D chips say enough.
   const status = $derived.by(() => {
     if (P.active && P.done)
       return sim.closed ? '한 바퀴 완료 · 파란 영역이 알짜 일이에요' : '재생 완료'
-    if (cur >= 0) {
-      const r = sim.resolved[cur]
-      const to = sim.closed && cur === sim.resolved.length - 1 ? 'A' : LETTERS[cur + 1]
-      return `${LETTERS[cur]}→${to} ${PROC[r.segment.type].full}${P.playing ? '' : ' · 일시정지'}`
-    }
-    if (!sim.start) return '그래프를 눌러 시작 상태 A를 찍으세요'
+    if (cur >= 0 || !sim.start) return ''
     if (sim.closed) return '순환이 닫혔어요 · 실행을 눌러 보세요'
     if (ghost && !ghost.valid) return ghost.why || '범위를 벗어났어요'
     if (ghost?.closing)
@@ -111,6 +101,16 @@
         : '놓으면 A로 돌아와 순환이 닫혀요'
     return `${PROC[sim.tool].name} 도구 · 끌거나 눌러서 다음 상태를 정하세요`
   })
+
+  function openPresets() {
+    const sel = document.querySelector<HTMLSelectElement>('select[aria-label="예시 경로"]')
+    sel?.focus()
+    try {
+      sel?.showPicker()
+    } catch {
+      // Older browsers: focusing the list is enough.
+    }
+  }
 
   // Drop a stale preview when the path or tool changes underneath it.
   $effect(() => {
@@ -255,7 +255,7 @@
           />
         {/if}
       </g>
-      {#each isoTemps as T (T)}
+      {#each isoTemps.filter((_, i) => i % 2 === 1) as T (T)}
         {@const Pe = (sim.gas.n * R * T) / (VMAX - 1.2)}
         {#if Pe < PMAX - 10}
           <text
@@ -264,6 +264,7 @@
             text-anchor="end"
             font-size="10"
             fill="var(--muted)"
+            opacity={sim.resolved.length ? 0.5 : 1}
             font-family={mono}>{T} K</text
           >
         {/if}
@@ -320,7 +321,7 @@
     {/if}
 
     {#if workArea}
-      <path d={workArea.d} fill={workArea.col} fill-opacity=".2" stroke="none" />
+      <path d={workArea.d} fill="var(--ink)" fill-opacity=".08" stroke="none" />
     {/if}
 
     {#each sim.resolved as r, i (r.segment.id)}
@@ -455,7 +456,13 @@
       />
     {/if}
   </svg>
-  <div class="graph-status" aria-live="polite">{status}</div>
+  {#if status}<div class="graph-status" aria-live="polite">{status}</div>{/if}
+  {#if !sim.start}
+    <div class="graph-empty">
+      <p>그래프를 눌러 기체의 처음 상태 A를 찍으세요</p>
+      <button class="linkish" onclick={openPresets}>또는 예시 불러오기</button>
+    </div>
+  {/if}
   {#if readout}
     <div class="readout" class:flip={readout.flip} style="left:{readout.x}px;top:{readout.y}px">
       {readout.text}

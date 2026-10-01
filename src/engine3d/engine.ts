@@ -111,8 +111,6 @@ export class EngineUnavailable extends Error {}
  */
 export class Engine {
   readonly speeds = new Float32Array(NP)
-  /** Outside pressure shown on the manometer, or null when idle. */
-  Pext: number | null = null
   vrms = vrmsAt(300)
 
   private renderer: THREE.WebGLRenderer
@@ -144,7 +142,6 @@ export class Engine {
   private jacket!: THREE.Group
   private jParts!: { mat: THREE.Material & { opacity: number } }[]
   private jMat!: THREE.MeshStandardMaterial
-  private jLab!: Label
   private hot!: Reservoir
   private cold!: Reservoir
   private bridges!: Record<'hot' | 'cold', Bridge>
@@ -377,7 +374,7 @@ export class Engine {
       new THREE.Vector3(0, 1, 0),
       new THREE.Vector3(0.45, 0.3, 0),
       0.7,
-      0x4cc06c,
+      0xdfe6ee,
       0.22,
       0.16,
     )
@@ -445,16 +442,7 @@ export class Engine {
     const skirt = new THREE.Mesh(new THREE.CylinderGeometry(1.24, 1.3, 0.42, 64), skirtMat)
     skirt.position.y = -0.24
     this.jacket.add(skirt)
-    this.jLab = makeLabel()
-    this.jLab.position.set(-1.95, 2.5, 0)
-    this.jLab.setText('Q = 0', '단열: 열이 드나들지 못함', '#F7D98A')
-    this.jacket.add(this.jLab)
-    this.jParts = [
-      { mat: this.jMat },
-      { mat: quiltMat },
-      { mat: skirtMat },
-      { mat: this.jLab.material },
-    ]
+    this.jParts = [{ mat: this.jMat }, { mat: quiltMat }, { mat: skirtMat }]
     scene.add(this.jacket)
 
     // Heat packets travelling reservoir ⇄ bridge ⇄ gas (always orange; direction = sign of Q).
@@ -644,7 +632,7 @@ export class Engine {
     this.pins.scale.set(0.6 + 0.4 * this.props.p, 1, 1)
     const jj = this.props.j
     this.jacket.visible = jj > 0.02
-    const jOp = [0.3, 0.4, 0.95, 1]
+    const jOp = [0.3, 0.4, 0.95]
     this.jParts.forEach((p, i) => (p.mat.opacity = jOp[i] * jj))
     this.jacket.scale.set(1 + 0.08 * (1 - jj), 1, 1 + 0.08 * (1 - jj))
     this.jMat.emissiveIntensity = 0.45 + 0.2 * Math.sin(tnow * 2.2)
@@ -664,7 +652,6 @@ export class Engine {
       const r = easeS(Math.max(0, Math.min(1, (v.tau - 0.7) / 0.3)))
       Pext = v.Pstart + (st.P - v.Pstart) * r
     } else Pext = st.P * (1 - 0.5 * v.vdir * this.velF)
-    this.Pext = v.live ? Pext : null
 
     // Manometer: each arm's mercury level follows its own side's pressure (higher pressure, lower
     // level), so the gas arm moves exactly as continuously as the gas pressure does. Only the
@@ -758,7 +745,6 @@ export class Engine {
       this.wArrow.visible = true
       this.wArrow.setDirection(new THREE.Vector3(0, up ? 1 : -1, 0))
       this.wArrow.position.set(0.5, up ? 0.3 : 1.1, 0)
-      this.wArrow.setColor(up ? 0x4cc06c : 0xf0924a)
     } else this.wArrow.visible = false
 
     this.stepParticles(dt, st.T, pv, mv, type, !!side && type !== 'adiabatic')
