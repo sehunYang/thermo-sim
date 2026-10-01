@@ -647,6 +647,7 @@
         stroke="var(--muted)"
         stroke-opacity=".35"
         stroke-dasharray="2 3"
+        pointer-events="none"
       />
       <line
         x1={G.L}
@@ -656,6 +657,7 @@
         stroke="var(--muted)"
         stroke-opacity=".35"
         stroke-dasharray="2 3"
+        pointer-events="none"
       />
     {/if}
   </svg>
