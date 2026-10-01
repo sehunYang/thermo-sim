@@ -43,6 +43,8 @@
 
   /** Speed histogram: bars from the particles, curve from Maxwell's distribution at T. */
   const tmp = new Color()
+  let avg: number[] = []
+  let seen = -1
   function drawHist(engine: Engine) {
     const cv = hist
     if (!cv) return
@@ -57,20 +59,26 @@
     const x = cv.getContext('2d')!
     x.setTransform(dpr, 0, 0, dpr, 0, 0)
     x.clearRect(0, 0, W, H)
-    const NB = 24
+    const NB = 20
     const bins = new Array<number>(NB).fill(0)
     for (const s of engine.speeds) bins[Math.min(NB - 1, Math.floor(speedU(s) * NB))]++
+    // 300 particles give ragged bars frame to frame; a short running average shows the shape the
+    // curve predicts. Start over when the engine redraws the speeds after a temperature jump.
+    if (engine.resamples !== seen || avg.length !== NB) {
+      seen = engine.resamples
+      avg = bins.slice()
+    } else for (let i = 0; i < NB; i++) avg[i] += (bins[i] - avg[i]) * 0.15
     const a2 = (engine.vrms * engine.vrms) / 3
     const curve: number[] = []
     for (let i = 0; i <= 60; i++) {
       const vv = (i / 60) * SPEED_MAX
       curve.push(vv * vv * Math.exp((-vv * vv) / (2 * a2)))
     }
-    const bmax = Math.max(...bins, 1)
+    const bmax = Math.max(...avg, 1)
     const bw = W / NB
     const top = 4
     const hh = H - top - 2
-    bins.forEach((n, i) => {
+    avg.forEach((n, i) => {
       speedColor((i + 0.5) / NB, tmp)
       x.fillStyle = `rgb(${(tmp.r * 255) | 0},${(tmp.g * 255) | 0},${(tmp.b * 255) | 0})`
       const h = (n / bmax) * hh
@@ -187,9 +195,23 @@
             </div>
           </div>
         {/if}
-        <button class="hud-reset" title="끌어서 회전 · 휠로 확대" onclick={() => resetView()}
-          >시점 초기화</button
+        <button
+          class="hud-reset"
+          title="시점 초기화 (끌어서 회전 · 휠로 확대)"
+          aria-label="시점 초기화"
+          onclick={() => resetView()}
         >
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"
+            ><path
+              d="M2.5 8a5.5 5.5 0 109.6-3.7M12.5 1.8v2.8H9.7"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            /><circle cx="8" cy="8" r="1.4" fill="currentColor" /></svg
+          >
+        </button>
       </div>
     {/if}
   </section>

@@ -15,10 +15,14 @@
     ['Q', '기체가 받은 열. +면 열을 받고, −면 열을 잃어요.'],
     ['W', '기체가 한 일. +면 기체가 피스톤을 밀어내고(팽창), −면 피스톤에 눌려요(압축).'],
     ['ΔU', '내부 에너지 변화. 입자들의 운동 에너지가 늘면 +, 온도도 함께 올라가요.'],
+    [
+      '열과 온도',
+      '열은 옮겨 가는 에너지, 온도는 입자가 얼마나 빠른지예요. 열을 받아도 온도가 그대로일 수 있어요(등온).',
+    ],
     ['Q = ΔU + W', '받은 열은 기체를 데우거나(ΔU) 일을 하는 데(W) 나뉘어 쓰여요.'],
     [
       'γ',
-      '단열선이 얼마나 가파른지 정하는 수예요. 단원자(헬륨처럼 원자 하나) 5/3, 이원자(공기처럼 원자 둘) 7/5.',
+      'γ = C_p / C_v. 압력이 일정할 때와 부피가 일정할 때 1 K 올리는 데 드는 열의 비예요. 클수록 단열선이 가팔라요. 단원자(헬륨처럼 원자 하나) 5/3, 이원자(공기처럼 원자 둘) 7/5.',
     ],
     ['η', '열효율. 받은 열 중 일로 바뀐 몫이에요. η = W_net / Q_in'],
     ['η_C · COP_C', '카르노 한계. 같은 두 온도 사이에서 어떤 기관도 넘을 수 없는 값이에요.'],
@@ -30,19 +34,50 @@
   ]
 
   let dlg: HTMLDivElement | undefined = $state()
+  let opener: HTMLElement | null = null
+  const open = $derived(!!sim.help)
   $effect(() => {
-    if (sim.help) dlg?.querySelector<HTMLElement>('[aria-selected="true"]')?.focus()
+    if (!open) return
+    opener = document.activeElement as HTMLElement | null
+    dlg?.querySelector<HTMLElement>('[aria-selected="true"]')?.focus()
+    return () => opener?.focus()
   })
 
   function close() {
     sim.help = ''
   }
+  // Esc closes even if focus has somehow left the dialog.
+  function onWinKey(e: KeyboardEvent) {
+    if (sim.help && e.key === 'Escape') close()
+  }
+  // Keep Tab inside the dialog.
+  function trap(e: KeyboardEvent) {
+    const els = [
+      ...(dlg?.querySelectorAll<HTMLElement>('button:not([tabindex="-1"]), [tabindex="0"]') ?? []),
+    ]
+    if (!els.length) return
+    const first = els[0]
+    const last = els[els.length - 1]
+    const at = document.activeElement
+    if (e.shiftKey && (at === first || !dlg?.contains(at))) {
+      e.preventDefault()
+      last.focus()
+    } else if (!e.shiftKey && (at === last || !dlg?.contains(at))) {
+      e.preventDefault()
+      first.focus()
+    }
+  }
   function tour() {
+    // The guide takes focus itself; don't pull it back to the help button.
+    opener = null
     sim.help = ''
     sim.coach = 1
   }
   function onKey(e: KeyboardEvent) {
-    if (e.key === 'Escape') close()
+    if (e.key === 'Escape') {
+      e.stopPropagation()
+      close()
+    } else if (e.key === 'Tab') trap(e)
     else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
       if (!(e.target as HTMLElement).matches('[role="tab"]')) return
       e.preventDefault()
@@ -58,8 +93,14 @@
   {#each text.split(/_(\w+)/) as part, i (i)}{#if i % 2}<sub>{part}</sub>{:else}{part}{/if}{/each}
 {/snippet}
 
+<svelte:window onkeydown={onWinKey} />
+
 {#if sim.help}
-  <div class="coach" role="presentation" onclick={(e) => e.target === e.currentTarget && close()}>
+  <div
+    class="help-back"
+    role="presentation"
+    onclick={(e) => e.target === e.currentTarget && close()}
+  >
     <div
       class="help"
       role="dialog"

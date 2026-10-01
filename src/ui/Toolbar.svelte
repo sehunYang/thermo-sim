@@ -37,12 +37,12 @@
     {@const pr = PROC[t]}
     <button
       class="tool"
-      aria-pressed={sim.tool === t}
+      aria-pressed={sim.tool === t && !sim.closed}
       style="--tc:var({pr.cssVar})"
-      title="{pr.full}: {pr.plain} ({pr.law})"
+      title="{pr.full}: {pr.plain} ({pr.law}) · 단축키 {pr.key}"
       onclick={() => (sim.tool = t)}
     >
-      <Swatch type={t} />{pr.name}<kbd>{pr.key}</kbd>
+      <Swatch type={t} />{pr.name}
     </button>
   {/each}
   <span class="sep"></span>

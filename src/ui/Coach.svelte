@@ -25,12 +25,31 @@
 
   let next: HTMLButtonElement | undefined = $state()
   let place = $state('')
-  const step = $derived(sim.coach ? STEPS[sim.coach - 1] : null)
+  // Opened from a shared link, the graph already holds a path: explain it instead of asking for A.
+  const READ_PATH = {
+    t: '그래프가 기체의 상태예요',
+    p: '점 하나는 그 순간 기체의 압력과 부피이고, 선은 기체가 거쳐 가는 과정이에요. 처음 상태가 A예요. 지우기를 누르면 직접 그릴 수 있어요.',
+    el: '.graph',
+  }
+  const step = $derived(
+    !sim.coach ? null : sim.coach === 1 && sim.start ? READ_PATH : STEPS[sim.coach - 1],
+  )
 
   /** Put the card in the largest free space around the target so it never covers it. */
-  function placeCard(r: DOMRect) {
-    const W = innerWidth
-    const H = innerHeight
+  function placeCard(rect: DOMRect) {
+    // On large screens the app is drawn with CSS zoom; fixed offsets inside it are scaled too,
+    // so work in the app's own (unzoomed) pixels.
+    const app = document.querySelector<HTMLElement>('.app')
+    const z = (app && parseFloat(getComputedStyle(app).zoom)) || 1
+    const r = {
+      left: rect.left / z,
+      right: rect.right / z,
+      top: rect.top / z,
+      bottom: rect.bottom / z,
+      width: rect.width / z,
+    }
+    const W = innerWidth / z
+    const H = innerHeight / z
     const w = Math.min(CARD_W, W - 32)
     const cx = Math.max(16, Math.min(W - w - 16, r.left + r.width / 2 - w / 2))
     const cy = Math.max(16, Math.min(H - CARD_H - 16, r.top))
@@ -71,6 +90,7 @@
     aria-label="사용 안내"
     tabindex="-1"
     onkeydown={onKey}
+    onclick={(e) => e.target === e.currentTarget && close()}
   >
     <div class="coach-card" style={place}>
       <div class="coach-step">{sim.coach} / {STEPS.length}</div>
