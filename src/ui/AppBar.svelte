@@ -2,6 +2,23 @@
   import { PRESET_GROUPS, PRESET_NOTE } from '../i18n/ko'
   import type { PresetName } from '../presets/cycles'
   import { sim } from '../store/simulation.svelte'
+  import { shareUrl } from '../share/urlState'
+
+  async function share() {
+    const saved = sim.saved
+    if (!saved) {
+      sim.notify('먼저 그래프에 경로를 그려 주세요')
+      return
+    }
+    const url = shareUrl(location.href.split('#')[0], saved)
+    history.replaceState(null, '', url)
+    try {
+      await navigator.clipboard.writeText(url)
+      sim.notify('지금 경로가 담긴 링크를 복사했어요')
+    } catch {
+      sim.notify('주소창의 링크를 복사해 공유하세요')
+    }
+  }
 
   function onPreset(e: Event) {
     const v = (e.currentTarget as HTMLSelectElement).value as PresetName | ''
@@ -100,6 +117,17 @@
           stroke-dasharray="2 2"
         /></svg
       >보조선</button
+    >
+    <button class="btn icon" title="공유 링크 복사" aria-label="공유 링크 복사" onclick={share}>
+      <svg width="16" height="16" viewBox="0 0 16 16"
+        ><path
+          d="M6.5 9.5l3-3M5 7.5L3.6 8.9a2.5 2.5 0 003.5 3.5L8.5 11M11 8.5l1.4-1.4a2.5 2.5 0 00-3.5-3.5L7.5 5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.4"
+          stroke-linecap="round"
+        /></svg
+      ></button
     >
     <button
       class="btn icon"
