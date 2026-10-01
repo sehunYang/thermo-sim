@@ -30,6 +30,6 @@ test('arrow keys step the playhead', async ({ page }) => {
   await page.getByLabel('예시 경로').selectOption('isothermal')
   await page.locator('body').click({ position: { x: 1, y: 1 } })
   await page.keyboard.press('ArrowRight')
-  await expect(page.getByText('A→B 등온 과정 재생 중')).toBeVisible()
+  await expect(page.locator('.graph-status', { hasText: 'A→B 등온 과정' })).toBeVisible()
   await expect(page.getByRole('button', { name: '계속' })).toBeVisible()
 })

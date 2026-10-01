@@ -15,6 +15,7 @@
   const toLabel = (i: number) => (sim.closed && i === n - 1 ? 'A' : LETTERS[i + 1])
   const note = $derived(sim.preset ? ' ' + PRESET_NOTE[sim.preset] : '')
   const cls = (v: number, pos: string, neg: string) => (v > 0.05 ? pos : v < -0.05 ? neg : '')
+  const pct = (x: number) => `${(x * 100).toFixed(1)}%`
 
   function onEnd(i: number, e: Event) {
     const v = Number((e.currentTarget as HTMLInputElement).value)
@@ -151,94 +152,93 @@
         경로가 A로 돌아와 닫히면 알짜 일, 흡수·방출 열, 열효율이 여기에 나타나요. 예시에서 카르노
         순환을 골라 보세요.
       </div>
-    {:else if sim.cycle.kind === 'refrigerator'}
-      {@const c = sim.cycle}
-      {@const top = Math.max(c.cop, c.carnotCop)}
-      <div class="cycle">
-        <div class="stat hl">
-          <div class="k">받은 일 W<sub>in</sub></div>
-          <div class="v">{fmtE(c.Win)} J</div>
-        </div>
-        <div class="stat">
-          <div class="k">저온부(실내)에서 흡수 Q<sub>C</sub></div>
-          <div class="v qout">{fmtE(c.Qc)} J</div>
-        </div>
-        <div class="stat">
-          <div class="k">고온부(실외)로 방출 Q<sub>H</sub></div>
-          <div class="v qin">{fmtE(c.Qh)} J</div>
-        </div>
-        <div class="stat">
-          <div class="k">한 바퀴 ΣΔU</div>
-          <div class="v">{fmtE(c.sumDU)} J</div>
-        </div>
-        <div class="stat hl">
-          <div class="k">성능계수 COP = Q<sub>C</sub>/W<sub>in</sub></div>
-          <div class="v">{c.cop.toFixed(2)}</div>
-        </div>
-      </div>
-      <div class="effbar">
-        <div class="effrow">
-          <span>이 순환 COP</span><span class="efftrack"
-            ><i style="width:{Math.min(100, (c.cop / top) * 100)}%;background:var(--accent)"
-            ></i></span
-          ><span class="num">{c.cop.toFixed(2)}</span>
-        </div>
-        <div class="effrow">
-          <span>카르노 COP</span><span class="efftrack"
-            ><i style="width:{Math.min(100, (c.carnotCop / top) * 100)}%;background:var(--muted)"
-            ></i></span
-          ><span class="num">{c.carnotCop.toFixed(2)}</span>
-        </div>
-      </div>
-      <div class="hint-muted">
-        경로가 반시계 방향으로 돌아 알짜 일이 음수(기체가 일을 받음)이므로 냉방기입니다. Q<sub
-          >H</sub
-        >
-        = Q<sub>C</sub>
-        + W<sub>in</sub>. 카르노 COP = T<sub>min</sub>/(T<sub>max</sub> − T<sub>min</sub>) = {f0(
-          c.Tmin,
-        )}/({f0(c.Tmax)} − {f0(c.Tmin)}).{note}
-      </div>
     {:else}
       {@const c = sim.cycle}
-      <div class="cycle">
-        <div class="stat hl">
-          <div class="k">알짜 일 W<sub>net</sub></div>
-          <div class="v">{fmtE(c.Wnet)} J</div>
+      {#if c.kind === 'engine'}
+        <div class="limit">
+          <div class="limit-row">
+            <span>이 순환의 열효율 η</span><span class="track"
+              ><i style="width:{Math.max(0, c.efficiency * 100)}%"></i></span
+            ><span class="num">{pct(c.efficiency)}</span>
+          </div>
+          <div class="limit-row ref">
+            <span>카르노 한계 η<sub>C</sub></span><span class="track"
+              ><i style="width:{c.carnotEfficiency * 100}%"></i></span
+            ><span class="num">{pct(c.carnotEfficiency)}</span>
+          </div>
         </div>
-        <div class="stat">
-          <div class="k">흡수한 열 Q<sub>in</sub></div>
-          <div class="v qin">{fmtE(c.Qin)} J</div>
+        <dl class="totals">
+          <div>
+            <dt>알짜 일 W<sub>net</sub></dt>
+            <dd class="num">{fmtE(c.Wnet)} J</dd>
+          </div>
+          <div>
+            <dt>받은 열 Q<sub>in</sub></dt>
+            <dd class="num">{fmtE(c.Qin)} J</dd>
+          </div>
+          <div>
+            <dt>잃은 열 Q<sub>out</sub></dt>
+            <dd class="num">{fmtE(c.Qout)} J</dd>
+          </div>
+        </dl>
+        <p class="hint-muted">
+          η = W<sub>net</sub>/Q<sub>in</sub>. 카르노 한계는 열을 받는 고온 {f0(c.Tsrc)} K와 열을 버리는
+          저온 {f0(c.Tsink)} K 사이에서 낼 수 있는 가장 높은 효율이에요.{note}
+        </p>
+      {:else if c.kind === 'refrigerator'}
+        {@const top = Math.max(c.cop, c.carnotCop)}
+        <div class="limit">
+          <div class="limit-row">
+            <span>이 순환의 성능계수 COP</span><span class="track"
+              ><i style="width:{(c.cop / top) * 100}%"></i></span
+            ><span class="num">{c.cop.toFixed(2)}</span>
+          </div>
+          <div class="limit-row ref">
+            <span>카르노 한계 COP<sub>C</sub></span><span class="track"
+              ><i style="width:{(c.carnotCop / top) * 100}%"></i></span
+            ><span class="num">{c.carnotCop.toFixed(2)}</span>
+          </div>
         </div>
-        <div class="stat">
-          <div class="k">방출한 열 Q<sub>out</sub></div>
-          <div class="v qout">{fmtE(c.Qout)} J</div>
-        </div>
-        <div class="stat">
-          <div class="k">한 바퀴 ΣΔU</div>
-          <div class="v">{fmtE(c.sumDU)} J</div>
-        </div>
-        <div class="stat hl">
-          <div class="k">열효율 η = W/Q<sub>in</sub></div>
-          <div class="v">{(c.efficiency * 100).toFixed(1)}%</div>
-        </div>
-      </div>
-      <div class="effbar">
-        <div class="effrow">
-          <span>이 순환 η</span><span class="efftrack"
-            ><i style="width:{Math.max(0, c.efficiency * 100)}%;background:var(--accent)"></i></span
-          ><span class="num">{(c.efficiency * 100).toFixed(1)}%</span>
-        </div>
-        <div class="effrow">
-          <span>카르노 η<sub>C</sub></span><span class="efftrack"
-            ><i style="width:{c.carnotEfficiency * 100}%;background:var(--muted)"></i></span
-          ><span class="num">{(c.carnotEfficiency * 100).toFixed(1)}%</span>
-        </div>
-      </div>
-      <div class="hint-muted">
-        η<sub>C</sub> = 1 − T<sub>min</sub>/T<sub>max</sub> = 1 − {f0(c.Tmin)}/{f0(c.Tmax)}.
-        그래프의 파란 영역이 알짜 일이에요.{note}
-      </div>
+        <dl class="totals">
+          <div>
+            <dt>받은 일 W<sub>in</sub></dt>
+            <dd class="num">{fmtE(c.Win)} J</dd>
+          </div>
+          <div>
+            <dt>실내에서 뺀 열 Q<sub>C</sub></dt>
+            <dd class="num">{fmtE(c.Qc)} J</dd>
+          </div>
+          <div>
+            <dt>실외로 버린 열 Q<sub>H</sub></dt>
+            <dd class="num">{fmtE(c.Qh)} J</dd>
+          </div>
+        </dl>
+        <p class="hint-muted">
+          반시계 방향으로 돌며 일을 받아 실내의 열을 실외로 옮겨요. COP = Q<sub>C</sub>/W<sub
+            >in</sub
+          >. 카르노 한계는 실내 {f0(c.Tsrc)} K와 실외 {f0(c.Tsink)} K 사이의 COP예요.{note}
+        </p>
+      {:else}
+        <p class="limit-note">
+          일을 받아 돌지만 냉방기는 아니에요. 열을 받는 동안 기체는 {f0(c.Tsrc)} K까지 뜨거워지고, 잃는
+          동안에도 {f0(c.Tsink)} K 아래로 식지 않아요. 그래서 열은 뜨거운 곳에서 차가운 곳으로 흐르기만
+          해요. 냉방기가 되려면 차가울 때 열을 받고 뜨거울 때 열을 버려야 해요.
+        </p>
+        <dl class="totals">
+          <div>
+            <dt>받은 일 W<sub>in</sub></dt>
+            <dd class="num">{fmtE(c.Win)} J</dd>
+          </div>
+          <div>
+            <dt>받은 열 Q<sub>in</sub></dt>
+            <dd class="num">{fmtE(c.Qin)} J</dd>
+          </div>
+          <div>
+            <dt>잃은 열 Q<sub>out</sub></dt>
+            <dd class="num">{fmtE(c.Qout)} J</dd>
+          </div>
+        </dl>
+      {/if}
     {/if}
   </div>
 </div>

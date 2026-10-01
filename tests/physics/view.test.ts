@@ -25,11 +25,20 @@ const play = (over: Partial<PlayState>): PlayState => ({
 })
 
 describe('engine view', () => {
-  it('is idle without a playhead', () => {
+  it('waits at A on the first process without a playhead', () => {
     const v = currentView({ ...base, play: play({ active: false, playing: false }) })
-    expect(v.live).toBe(false)
-    expect(v.dq).toBe(0)
-    expect(v.st).toEqual(segs[3].b)
+    expect(v).toMatchObject({ live: false, empty: false, type: 'isothermal', heat: 0, dq: 0 })
+    expect(v.st).toEqual(segs[0].a)
+  })
+
+  it('is empty before anything is drawn', () => {
+    const v = currentView({
+      ...base,
+      segs: [],
+      lastState: null,
+      play: play({ active: false, playing: false }),
+    })
+    expect(v.empty).toBe(true)
   })
 
   it('takes heat from the hot side while the first isotherm expands', () => {
@@ -45,9 +54,19 @@ describe('engine view', () => {
     expect(v.dq).toBeLessThan(0)
   })
 
-  it('has no heat rate while paused', () => {
+  it('keeps the segment heat direction and reservoir while paused', () => {
     const v = currentView({ ...base, play: play({ playing: false }) })
-    expect(v.dq).toBe(0)
-    expect(v.moving).toBe(false)
+    expect(v).toMatchObject({ dq: 0, moving: false, heat: 1, work: 1, side: 'hot' })
+  })
+
+  it('names the coming segment at its very start, not the one before', () => {
+    // C→D compresses: at s = 0 nothing has happened yet, but the work already points inwards.
+    const v = currentView({ ...base, play: play({ seg: 2, s: 0, playing: false }) })
+    expect(v).toMatchObject({ heat: -1, work: -1, side: 'cold', W: 0 })
+  })
+
+  it('has no heat on an adiabat even when Q rounds away from zero', () => {
+    const v = currentView({ ...base, play: play({ seg: 1 }) })
+    expect(v).toMatchObject({ heat: 0, side: null })
   })
 })

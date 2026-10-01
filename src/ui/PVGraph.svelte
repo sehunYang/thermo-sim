@@ -100,7 +100,7 @@
     if (cur >= 0) {
       const r = sim.resolved[cur]
       const to = sim.closed && cur === sim.resolved.length - 1 ? 'A' : LETTERS[cur + 1]
-      return `${LETTERS[cur]}→${to} ${PROC[r.segment.type].full} 재생 중`
+      return `${LETTERS[cur]}→${to} ${PROC[r.segment.type].full}${P.playing ? '' : ' · 일시정지'}`
     }
     if (!sim.start) return '그래프를 눌러 시작 상태 A를 찍으세요'
     if (sim.closed) return '순환이 닫혔어요 · 실행을 눌러 보세요'

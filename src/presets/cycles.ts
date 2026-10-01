@@ -128,15 +128,19 @@ export function buildPreset(name: PresetName, gas: GasConfig = MONATOMIC): Proce
       ]
       break
     }
-    case 'revbrayton':
-      start = { V: 20, P: 80 }
+    case 'revbrayton': {
+      // Pressure ratio 4 compresses the air enough, for either gas, that it is still hotter than
+      // the room after giving its heat away outdoors: otherwise it would not be a refrigerator.
+      const r = Math.pow(4, -1 / g)
+      start = { V: 20, P: 100 }
       segs = [
-        { type: 'isobaric', end: 30 },
-        { type: 'adiabatic', end: 15 },
-        { type: 'isobaric', end: 10 },
+        { type: 'isobaric', end: 26 },
+        { type: 'adiabatic', end: 26 * r },
+        { type: 'isobaric', end: 20 * r },
         { type: 'adiabatic', end: 20 },
       ]
       break
+    }
   }
   return {
     gas,

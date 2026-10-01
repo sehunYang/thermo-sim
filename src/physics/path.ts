@@ -71,58 +71,77 @@ export function isValidPath(path: ProcessPath, samples = 20): boolean {
   })
 }
 
-export interface TemperatureRange {
-  Tmin: number
-  Tmax: number
+/**
+ * Reservoir temperatures the second law allows. Heat only flows from hot to cold, so the source
+ * of every heat-absorbing segment must be at least as hot as the gas ever gets there, and the
+ * sink of every heat-rejecting segment at most as hot as the gas ever gets there:
+ * T_src = max T over absorbing segments, T_sink = min T over rejecting ones (null when none).
+ */
+export interface ReservoirTemps {
+  Tsrc: number | null
+  Tsink: number | null
 }
 
-export function temperatureRange(path: ProcessPath, samples = 20): TemperatureRange | null {
-  const segs = resolve(path)
-  if (!segs.length) return null
-  let Tmin = Infinity
-  let Tmax = -Infinity
-  for (const r of segs)
+/** Below this |Q| a segment counts as exchanging no heat (rounding of a closing segment). */
+const Q_EPS = 0.5
+
+export function reservoirTemps(path: ProcessPath, samples = 20): ReservoirTemps {
+  let Tsrc: number | null = null
+  let Tsink: number | null = null
+  for (const r of resolve(path)) {
+    const Q = r.energy.Q
+    if (r.segment.type === 'adiabatic' || Math.abs(Q) < Q_EPS) continue
     for (let k = 0; k <= samples; k++) {
       const { T } = stateAt(path.gas, r, k / samples)
-      Tmin = Math.min(Tmin, T)
-      Tmax = Math.max(Tmax, T)
+      if (Q > 0) Tsrc = Math.max(Tsrc ?? -Infinity, T)
+      else Tsink = Math.min(Tsink ?? Infinity, T)
     }
-  return { Tmin, Tmax }
+  }
+  return { Tsrc, Tsink }
+}
+
+interface CycleTotals {
+  sumDU: number
+  /** Heat-source and heat-sink temperatures (see reservoirTemps). */
+  Tsrc: number
+  Tsink: number
 }
 
 export type CycleAnalysis =
-  | {
+  | (CycleTotals & {
       kind: 'engine'
       Wnet: number
       Qin: number
+      /** Heat rejected, as a positive amount. */
       Qout: number
-      sumDU: number
       efficiency: number
       carnotEfficiency: number
-      Tmin: number
-      Tmax: number
-    }
-  | {
+    })
+  | (CycleTotals & {
       kind: 'refrigerator'
       Win: number
       Qc: number
       Qh: number
-      sumDU: number
       cop: number
       carnotCop: number
-      Tmin: number
-      Tmax: number
-    }
+    })
+  | (CycleTotals & {
+      /** Work goes in, yet heat only runs downhill: nothing is pumped out of a cold place. */
+      kind: 'dissipative'
+      Win: number
+      Qin: number
+      Qout: number
+    })
 
 /**
  * Cycle totals for a closed path; null for an open one. No process changes the sign of Q within
- * a segment, so Q_in and Q_out can be summed segment by segment.
+ * a segment, so Q_in and Q_out can be summed segment by segment. The Carnot limits use the
+ * reservoir temperatures, so η ≤ η_C and COP ≤ COP_C always hold (Clausius inequality).
  */
 export function analyzeCycle(path: ProcessPath): CycleAnalysis | null {
   if (!path.closed) return null
   const segs = resolve(path)
-  const range = temperatureRange(path)
-  if (!segs.length || !range) return null
+  if (!segs.length) return null
   let Wnet = 0
   let Qin = 0
   let Qout = 0
@@ -131,54 +150,52 @@ export function analyzeCycle(path: ProcessPath): CycleAnalysis | null {
     Wnet += e.W
     sumDU += e.dU
     if (e.Q > 0) Qin += e.Q
-    else Qout += e.Q
+    else Qout -= e.Q
   }
-  const { Tmin, Tmax } = range
+  const { Tsrc, Tsink } = reservoirTemps(path)
+  const temps = { sumDU, Tsrc: Tsrc ?? 0, Tsink: Tsink ?? 0 }
   if (Wnet >= 0)
     return {
       kind: 'engine',
+      ...temps,
       Wnet,
       Qin,
       Qout,
-      sumDU,
       efficiency: Qin > 0 ? Wnet / Qin : 0,
-      carnotEfficiency: 1 - Tmin / Tmax,
-      Tmin,
-      Tmax,
+      carnotEfficiency: Tsrc && Tsink ? 1 - Tsink / Tsrc : 0,
     }
   const Win = -Wnet
-  return {
-    kind: 'refrigerator',
-    Win,
-    Qc: Qin,
-    Qh: -Qout,
-    sumDU,
-    cop: Win > 0 ? Qin / Win : 0,
-    carnotCop: Tmin / (Tmax - Tmin),
-    Tmin,
-    Tmax,
-  }
+  if (Tsrc != null && Tsink != null && Tsrc < Tsink)
+    return {
+      kind: 'refrigerator',
+      ...temps,
+      Win,
+      Qc: Qin,
+      Qh: Qout,
+      cop: Qin / Win,
+      carnotCop: Tsrc / (Tsink - Tsrc),
+    }
+  return { kind: 'dissipative', ...temps, Win, Qin, Qout }
 }
 
 export type ReservoirSide = 'hot' | 'cold'
 
 /**
- * Which reservoir each segment's copper bridge touches (null for adiabatic or negligible heat).
- * In a closed cycle the segment's mean temperature is compared with the cycle's mid temperature
- * (outside a 5% band), so a refrigerator absorbs from the cold side; otherwise the sign of Q decides.
+ * Which reservoir each segment's copper bridge touches (null for adiabatic or negligible heat),
+ * from the sign of Q alone. A refrigerator absorbs from its cold side (the room) and rejects to
+ * its hot side (outdoors); everything else absorbs from the hot side.
  */
 export function reservoirSides(path: ProcessPath): (ReservoirSide | null)[] {
-  const segs = resolve(path)
-  const range = temperatureRange(path)
-  if (!range) return []
-  const mid = (range.Tmin + range.Tmax) / 2
-  const band = (range.Tmax - range.Tmin) * 0.05
-  return segs.map(({ segment, a, b, energy: e }) => {
-    if (segment.type === 'adiabatic' || Math.abs(e.Q) < 0.5) return null
-    if (path.closed) {
-      const avg = (a.T + b.T) / 2
-      if (Math.abs(avg - mid) > band) return avg > mid ? 'hot' : 'cold'
-    }
-    return e.Q > 0 ? 'hot' : 'cold'
+  const fridge = analyzeCycle(path)?.kind === 'refrigerator'
+  return resolve(path).map(({ segment, energy: e }) => {
+    if (segment.type === 'adiabatic' || Math.abs(e.Q) < Q_EPS) return null
+    return e.Q > 0 === !fridge ? 'hot' : 'cold'
   })
+}
+
+/** Temperature to label each reservoir box with, for a closed path (null otherwise). */
+export function reservoirLabels(path: ProcessPath): { hot: number; cold: number } | null {
+  const c = analyzeCycle(path)
+  if (!c || !c.Tsrc || !c.Tsink) return null
+  return c.kind === 'refrigerator' ? { hot: c.Tsink, cold: c.Tsrc } : { hot: c.Tsrc, cold: c.Tsink }
 }

@@ -25,24 +25,18 @@
         ? '저온부(실내)'
         : '저온 열원'
   const heat = $derived.by(() => {
-    const dir = Math.abs(v.dq) < 0.02 ? 0 : Math.sign(v.dq)
-    if (v.type === 'adiabatic')
-      return { tag: '■ 단열재: 열 출입 차단', col: '#F7D98A', val: 'Q = 0' }
-    if (!v.live) return { tag: '', col: '', val: '열원 대기' }
-    if (dir && v.side) {
-      const w = where(v.side)
-      return {
-        tag: dir > 0 ? `● ${w} → 기체: 열 흡수` : `● 기체 → ${w}: 열 방출`,
-        col: '#FFA060',
-        val: `Q ${fmtE(v.Q)} J`,
-      }
+    if (v.type === 'adiabatic') return { tag: '단열: 열 출입 없음', col: '#F7D98A', val: 'Q = 0' }
+    if (!v.heat || !v.side) return { tag: '열 출입 없음', col: '', val: 'Q = 0' }
+    const w = where(v.side)
+    return {
+      tag: v.heat > 0 ? `${w} → 기체: 열 받음` : `기체 → ${w}: 열 잃음`,
+      col: '#FFA060',
+      val: `Q ${fmtE(v.Q)} J`,
     }
-    return { tag: '', col: '', val: `열 출입 없음 Q ${fmtE(v.Q)} J` }
   })
   const work = $derived.by(() => {
-    if (v.type === 'isochoric') return { tag: '', col: '', val: '피스톤 고정: W = 0' }
-    if (!v.live) return { tag: '', col: '', val: '일 0 J' }
-    return v.W >= 0
+    if (v.type === 'isochoric') return { tag: '피스톤 고정', col: '', val: 'W = 0' }
+    return v.work >= 0
       ? { tag: '▲ 기체가 일함', col: '#4CC06C', val: `W ${fmtE(v.W)} J` }
       : { tag: '▼ 기체가 일을 받음', col: '#F0924A', val: `W ${fmtE(v.W)} J` }
   })
@@ -124,15 +118,16 @@
     let last = performance.now()
     let frame = 0
     const loop = (now: number) => {
-      const dt = Math.min(0.05, (now - last) / 1000)
+      // The first frame's timestamp can be older than `last` when start-up work (a shared link)
+      // kept the main thread busy; a negative step would fling the piston and particles away.
+      const dt = Math.max(0, Math.min(0.05, (now - last) / 1000))
       last = now
       sim.tick(dt)
       if (engine && onScreen) {
         engine.frame(dt, {
           view: sim.view,
           fridge: sim.fridge,
-          closed: sim.closed,
-          trange: sim.trange,
+          reservoirT: sim.reservoirT,
         })
         Pext = engine.Pext
         if (frame++ % 3 === 0) drawHist(engine)
@@ -156,59 +151,60 @@
       </div>
     {:else}
       <div class="hud">
-        <div class="hud-proc">
-          <span class="chip"
-            ><span class="dot" style="background:var({pr.cssVar})"></span><span
-              >{pr.full}{v.live ? '' : ' · 대기'}</span
-            ></span
-          >
-          <span class="chip small"
-            >{#if heat.tag}<span style="color:{heat.col}">{heat.tag}</span
-              >&nbsp;{/if}{heat.val}</span
-          >
-          <span class="chip small" id="hudWork"
-            >{#if work.tag}<span style="color:{work.col}">{work.tag}</span
-              >&nbsp;{/if}{work.val}</span
-          >
-        </div>
-        <div class="gauges">
-          <div class="gauge">
-            <div class="gauge-top">
-              <span class="gauge-k">기체 압력 P</span><span class="gauge-v">{f0(v.st.P)} kPa</span>
-            </div>
-            <div class="gauge-bar"><i style="width:{pct(v.st.P, LIMITS.Pmax)}"></i></div>
-          </div>
-          <div class="gauge">
-            <div class="gauge-top">
-              <span class="gauge-k" title="움직이는 동안 차이를 과장해 표시">바깥 압력*</span><span
-                class="gauge-v">{Pext == null ? '–' : f0(Pext) + ' kPa'}</span
+        {#if !v.empty}
+          <div class="hud-proc">
+            <span class="chip"
+              ><span class="dot" style="background:var({pr.cssVar})"></span><span>{pr.full}</span
+              ></span
+            >
+            {#if v.live}
+              <span class="chip small"
+                ><span style:color={heat.col || null}>{heat.tag}</span>&nbsp;{heat.val}</span
               >
+              <span class="chip small" id="hudWork"
+                ><span style:color={work.col || null}>{work.tag}</span>&nbsp;{work.val}</span
+              >
+            {/if}
+          </div>
+          <div class="gauges">
+            <div class="gauge">
+              <div class="gauge-top">
+                <span class="gauge-k">기체 압력 P</span><span class="gauge-v">{f0(v.st.P)} kPa</span
+                >
+              </div>
+              <div class="gauge-bar"><i style="width:{pct(v.st.P, LIMITS.Pmax)}"></i></div>
             </div>
-            <div class="gauge-bar">
-              <i style="width:{Pext == null ? '0%' : pct(Pext, LIMITS.Pmax)};background:#E8C070"
-              ></i>
+            <div class="gauge">
+              <div class="gauge-top">
+                <span class="gauge-k" title="움직이는 동안 차이를 과장해 표시">바깥 압력*</span
+                ><span class="gauge-v">{Pext == null ? '–' : f0(Pext) + ' kPa'}</span>
+              </div>
+              <div class="gauge-bar">
+                <i style="width:{Pext == null ? '0%' : pct(Pext, LIMITS.Pmax)};background:#E8C070"
+                ></i>
+              </div>
+            </div>
+            <div class="gauge">
+              <div class="gauge-top">
+                <span class="gauge-k">부피 V</span><span class="gauge-v">{f1(v.st.V)} L</span>
+              </div>
+              <div class="gauge-bar"><i style="width:{pct(v.st.V, LIMITS.Vmax)}"></i></div>
+            </div>
+            <div class="gauge">
+              <div class="gauge-top">
+                <span class="gauge-k">온도 T</span><span class="gauge-v">{f0(v.st.T)} K</span>
+              </div>
+              <div class="gauge-bar">
+                <i
+                  style="width:{pct(
+                    v.st.T,
+                    1500,
+                  )};background:linear-gradient(90deg,#3b82f6,#f59e0b,#ef4444)"
+                ></i>
+              </div>
             </div>
           </div>
-          <div class="gauge">
-            <div class="gauge-top">
-              <span class="gauge-k">부피 V</span><span class="gauge-v">{f1(v.st.V)} L</span>
-            </div>
-            <div class="gauge-bar"><i style="width:{pct(v.st.V, LIMITS.Vmax)}"></i></div>
-          </div>
-          <div class="gauge">
-            <div class="gauge-top">
-              <span class="gauge-k">온도 T</span><span class="gauge-v">{f0(v.st.T)} K</span>
-            </div>
-            <div class="gauge-bar">
-              <i
-                style="width:{pct(
-                  v.st.T,
-                  1500,
-                )};background:linear-gradient(90deg,#3b82f6,#f59e0b,#ef4444)"
-              ></i>
-            </div>
-          </div>
-        </div>
+        {/if}
         <div class="hud-legend">
           <div class="row"><span>입자 속력 분포</span><span>- - 평균(√v²)</span></div>
           <canvas bind:this={hist} aria-label="입자 속력 분포 히스토그램"></canvas>
