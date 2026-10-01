@@ -19,7 +19,8 @@ test.describe('first visit', () => {
 
 test('help has a terms tab and can start the guide', async ({ page }) => {
   await page.goto('./')
-  await page.getByRole('button', { name: '도움말' }).click()
+  await page.getByRole('button', { name: '더 보기' }).click()
+  await page.getByRole('menuitem', { name: '도움말' }).click()
   const help = page.getByRole('dialog', { name: '도움말' })
   await expect(help).toBeVisible()
   await page.keyboard.press('ArrowRight')
@@ -69,7 +70,10 @@ test('a cycle can be drawn, played and inspected with the keyboard alone', async
     'aria-selected',
     'true',
   )
-  await page.getByRole('button', { name: '공유 링크 복사' }).focus()
+  await page.getByRole('button', { name: '더 보기' }).focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('menuitemcheckbox', { name: /보조선/ })).toBeFocused()
+  await page.keyboard.press('ArrowDown')
   await page.keyboard.press('Enter')
   await expect(page.locator('.toast')).toContainText('링크')
 })

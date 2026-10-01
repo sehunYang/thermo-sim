@@ -2,6 +2,7 @@
   import { LETTERS } from '../i18n/ko'
   import { sim } from '../store/simulation.svelte'
 
+  const SPEEDS = [0.25, 0.5, 1, 2, 4]
   const n = $derived(sim.resolved.length)
   const P = $derived(sim.play)
   const label = $derived(P.playing ? '일시정지' : '실행')
@@ -72,16 +73,13 @@
       oninput={(e) => sim.seek(Number(e.currentTarget.value) / 1000)}
     />
   </div>
-  <label class="field"
-    ><span class="hide-sm">속도</span>
-    <select
-      class="select"
-      aria-label="재생 속도"
-      value={String(P.speed)}
-      onchange={(e) => (sim.play.speed = Number(e.currentTarget.value))}
-    >
-      {#each ['0.25', '0.5', '1', '2', '4'] as s (s)}<option value={s}>{s}×</option>{/each}
-    </select></label
+  <!-- The button names its own speed; each press steps to the next one. -->
+  <button
+    class="btn speed"
+    aria-label="재생 속도"
+    title="재생 속도 바꾸기"
+    onclick={() => (sim.play.speed = SPEEDS[(SPEEDS.indexOf(P.speed) + 1) % SPEEDS.length] ?? 1)}
+    ><span class="num">{P.speed}×</span></button
   >
   <button
     class="btn icon loop"

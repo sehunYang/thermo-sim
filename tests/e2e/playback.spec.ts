@@ -3,7 +3,9 @@ import { expect, test } from '@playwright/test'
 test('running a preset plays it through and highlights the current segment', async ({ page }) => {
   await page.goto('./')
   await page.getByLabel('예시 경로').selectOption('isothermal')
-  await page.getByLabel('재생 속도').selectOption('4')
+  const speed = page.getByRole('button', { name: '재생 속도' })
+  for (let i = 0; i < 5 && (await speed.innerText()) !== '4×'; i++) await speed.click()
+  await expect(speed).toHaveText('4×')
   await page.getByRole('button', { name: '실행' }).click()
   await expect(page.locator('tbody tr.current')).toBeVisible()
   await expect(page.locator('tbody tr.current')).toHaveCount(1)

@@ -84,11 +84,30 @@
       >
     </button>
     <button
-      class="btn"
-      title="마지막 상태에서 A로 돌아가는 가장 가까운 과정을 찾아 순환을 닫아요"
-      disabled={!sim.segments.length || sim.closed}
-      onclick={complete}>자동 완성</button
+      class="btn icon"
+      title="모두 지우기"
+      aria-label="지우기"
+      disabled={!sim.start}
+      onclick={() => sim.clear()}
     >
-    <button class="btn" disabled={!sim.start} onclick={() => sim.clear()}>지우기</button>
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"
+        ><path
+          d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 8.5h5.6l.7-8.5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.4"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        /></svg
+      >
+    </button>
+    <!-- Only there when it can do something: an open path with at least one segment. -->
+    {#if sim.segments.length && !sim.closed}
+      <button
+        class="btn"
+        title="마지막 상태에서 A로 돌아가는 가장 가까운 과정을 찾아 순환을 닫아요"
+        onclick={complete}>자동 완성</button
+      >
+    {/if}
   </span>
 </div>
