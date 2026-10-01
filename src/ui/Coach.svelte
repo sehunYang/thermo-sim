@@ -3,14 +3,9 @@
 
   const STEPS = [
     {
-      t: '시작 상태를 찍어요',
-      p: '그래프의 아무 곳이나 누르면 그 압력과 부피가 기체의 처음 상태 A가 돼요. 온도는 PV = nRT로 저절로 정해져요.',
-      el: '.graph',
-    },
-    {
-      t: '과정을 골라 그려요',
-      p: '등적·등압·등온·단열 중 하나를 고르고 그래프를 끌어 보세요. 선은 그 과정이 허락하는 곡선 위로만 움직여요. A 가까이 돌아오면 순환이 닫혀요.',
-      el: '.tools',
+      t: '그래프에 그려요',
+      p: '그래프를 누르면 그 압력과 부피가 처음 상태 A가 돼요(온도는 PV = nRT). 위에서 과정을 고르고 이어서 누르면 선은 그 과정의 곡선 위로만 그려지고, A로 돌아오면 순환이 닫혀요.',
+      el: '.graph-pane',
     },
     {
       t: '실행해서 비교해요',
@@ -85,14 +80,18 @@
 {#if step}
   <div
     class="coach"
-    role="dialog"
-    aria-modal="true"
-    aria-label="사용 안내"
-    tabindex="-1"
+    role="presentation"
     onkeydown={onKey}
     onclick={(e) => e.target === e.currentTarget && close()}
   >
-    <div class="coach-card" style={place}>
+    <div
+      class="coach-card"
+      style={place}
+      role="dialog"
+      aria-modal="true"
+      aria-label="사용 안내"
+      tabindex="-1"
+    >
       <div class="coach-step">{sim.coach} / {STEPS.length}</div>
       <h4>{step.t}</h4>
       <p>{step.p}</p>
