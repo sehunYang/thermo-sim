@@ -1,7 +1,6 @@
 import type { GasConfig, GasState, ProcessType } from '../physics/gas'
 import { stateAt, type ReservoirSide, type ResolvedSegment } from '../physics/path'
 import { energy, state } from '../physics/processes'
-import { invEase } from '../physics/timeline'
 
 export interface PlayState {
   /** A playhead exists (the graph and 3D follow it instead of the drawing state). */
@@ -37,10 +36,6 @@ export interface View {
   moving: boolean
   /** +1 expanding, −1 compressing, 0 isochoric or idle */
   vdir: number
-  Pstart: number
-  Pend: number
-  /** Elapsed fraction of the segment's time (s = easeS(tau)). */
-  tau: number
 }
 
 /** Below this |Q| or |W| a segment counts as exchanging none (rounding of a closing segment). */
@@ -89,9 +84,6 @@ export function currentView(opts: {
       side: heat ? (sides[i] ?? null) : null,
       moving,
       vdir: t === 'isochoric' ? 0 : Math.sign(r.b.V - r.a.V),
-      Pstart: r.a.P,
-      Pend: r.b.P,
-      tau: invEase(play.s),
     }
   }
   // Before playback the scene waits at A, on the first segment's process.
@@ -111,8 +103,5 @@ export function currentView(opts: {
     side: null,
     moving: false,
     vdir: first && first.segment.type !== 'isochoric' ? Math.sign(first.b.V - first.a.V) : 0,
-    Pstart: st.P,
-    Pend: st.P,
-    tau: 0,
   }
 }
