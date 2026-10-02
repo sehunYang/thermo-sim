@@ -36,6 +36,8 @@ export interface View {
   moving: boolean
   /** +1 expanding, −1 compressing, 0 isochoric or idle */
   vdir: number
+  /** Gas pressure when the current segment began (P_ext through an isochoric step). */
+  Pstart: number
 }
 
 /** Below this |Q| or |W| a segment counts as exchanging none (rounding of a closing segment). */
@@ -84,6 +86,7 @@ export function currentView(opts: {
       side: heat ? (sides[i] ?? null) : null,
       moving,
       vdir: t === 'isochoric' ? 0 : Math.sign(r.b.V - r.a.V),
+      Pstart: r.a.P,
     }
   }
   // Before playback the scene waits at A, on the first segment's process.
@@ -103,5 +106,6 @@ export function currentView(opts: {
     side: null,
     moving: false,
     vdir: first && first.segment.type !== 'isochoric' ? Math.sign(first.b.V - first.a.V) : 0,
+    Pstart: st.P,
   }
 }

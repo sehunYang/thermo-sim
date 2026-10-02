@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { LIMITS } from '../physics/path'
 import { speedColor, speedU, vrmsAt } from './speed'
-import { manometerLevels } from './manometer'
+import { externalPressure, manometerLevels } from './manometer'
 import type { View } from './view'
 
 const NP = 300
@@ -130,6 +130,10 @@ export class Engine {
   private flow = 0
   /** Packet travel clock; advances only while the playhead moves. */
   private pkT = 0
+  /** Shown P − P_ext and its decaying offset after a jump in P_ext, kPa. */
+  private manoShown = 0
+  private manoOff = 0
+  private manoKey = ''
   private tmpC = new THREE.Color()
   private tmpC2 = new THREE.Color()
   private mat4 = new THREE.Matrix4()
@@ -515,8 +519,8 @@ export class Engine {
   }
 
   /**
-   * Open-tube mercury manometer at the front right: a hose from the gas below the piston feeds the
-   * left arm; the right arm is open to the atmosphere.
+   * U-tube mercury manometer at the front right: a hose from the gas below the piston feeds the
+   * left arm; the right arm stands for the outside of the piston (P_ext).
    */
   private buildManometer() {
     const { MX1, MX2, MZ, MYB, MYT } = this.MANO
@@ -611,7 +615,7 @@ export class Engine {
     // Real Δh reaches metres of mercury; the drawing is linear but reduced, and says so.
     labOut.scale.set(1.9, 0.63, 1)
     labOut.position.set(MX2 + 0.3, MYT + 0.16, MZ)
-    labOut.setText('대기 쪽', 'Δh 줄여 그림', INK)
+    labOut.setText('외부 쪽', 'Δh 줄여 그림', INK)
     mano.add(labOut)
     this.dhLine = new THREE.Mesh(
       new THREE.BoxGeometry(0.03, 1, 0.03).translate(0, 0.5, 0),
@@ -670,13 +674,23 @@ export class Engine {
 
     const mv = v.moving ? v.vdir : 0
 
-    // Open-tube manometer. Every process is quasi-static, so the outside pushes on the piston with
-    // exactly the gas pressure at every instant (constant in an isobaric step; in an isochoric step
-    // the pins carry the difference). The U-tube therefore shows only P − P_atm: mercury is
-    // conserved, so the arms move equally and oppositely and both follow the gas pressure.
+    // U-tube between the gas and the outside of the piston: it shows P − P_ext only. P_ext stays
+    // put through an isochoric step and equals P everywhere else, so the arms move (equally and
+    // oppositely) only while the pins carry a difference. When P_ext is matched to P after an
+    // isochoric step, the mercury flows back to level instead of teleporting.
     {
       const M = this.MANO
-      const { gas: hl, open: hr } = manometerLevels(st.P)
+      const Pext = externalPressure(type, st.P, v.Pstart, v.live)
+      const dP = st.P - Pext
+      const key = `${v.live}|${type}|${v.Pstart}`
+      if (key !== this.manoKey) {
+        this.manoOff += this.manoShown - dP
+        this.manoKey = key
+      }
+      this.manoOff *= Math.exp(-dt * 6)
+      if (Math.abs(this.manoOff) < 0.05) this.manoOff = 0
+      this.manoShown = dP + this.manoOff
+      const { gas: hl, ext: hr } = manometerLevels(this.manoShown)
       this.colL.scale.y = hl
       this.colL.position.y = M.MYB + hl / 2
       this.colR.scale.y = hr
