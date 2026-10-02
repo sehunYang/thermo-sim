@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { LIMITS } from '../physics/path'
-import { easeS } from '../physics/timeline'
 import { speedColor, speedU, vrmsAt } from './speed'
+import { manometerLevels } from './manometer'
 import type { View } from './view'
 
 const NP = 300
@@ -9,7 +9,6 @@ const CYL_R = 1
 const HMIN = 0.1
 const HSPAN = 2.9
 const RES_X = 2.3
-const PMAX = LIMITS.Pmax
 const hOfV = (V: number) => HMIN + (V / LIMITS.Vmax) * HSPAN
 const clampZoom = (z: number) => Math.max(0.6, Math.min(1.6, z))
 // Lights were tuned with three's legacy (non-physical) intensities; π restores that brightness.
@@ -131,10 +130,6 @@ export class Engine {
   private flow = 0
   /** Packet travel clock; advances only while the playhead moves. */
   private pkT = 0
-  private velF = 0
-  private motion = 0
-  private hOut = 0.95
-  private manoReady = false
   private tmpC = new THREE.Color()
   private tmpC2 = new THREE.Color()
   private mat4 = new THREE.Matrix4()
@@ -520,8 +515,8 @@ export class Engine {
   }
 
   /**
-   * U-tube mercury manometer at the front right: a hose from the gas below the piston feeds the
-   * left arm; the right arm is open to the outside.
+   * Open-tube mercury manometer at the front right: a hose from the gas below the piston feeds the
+   * left arm; the right arm is open to the atmosphere.
    */
   private buildManometer() {
     const { MX1, MX2, MZ, MYB, MYT } = this.MANO
@@ -613,10 +608,10 @@ export class Engine {
     labGas.setText('기체 쪽', '', INK)
     mano.add(labGas)
     const labOut = makeLabel()
-    // The drawing exaggerates the level difference; the note stays on screen with the tube.
+    // Real Δh reaches metres of mercury; the drawing is linear but reduced, and says so.
     labOut.scale.set(1.9, 0.63, 1)
     labOut.position.set(MX2 + 0.3, MYT + 0.16, MZ)
-    labOut.setText('바깥 쪽', 'Δh 크게 그림', INK)
+    labOut.setText('대기 쪽', 'Δh 줄여 그림', INK)
     mano.add(labOut)
     this.dhLine = new THREE.Mesh(
       new THREE.BoxGeometry(0.03, 1, 0.03).translate(0, 0.5, 0),
@@ -673,44 +668,23 @@ export class Engine {
     this.jacket.scale.set(1 + 0.08 * (1 - jj), 1, 1 + 0.08 * (1 - jj))
     this.jMat.emissiveIntensity = 0.45 + 0.2 * Math.sin(tnow * 2.2)
 
-    // Outside pressure. While the piston moves the imbalance is exaggerated in proportion to its
-    // speed, so it is zero at rest and at every segment boundary and P_ext never jumps. In an
-    // isochoric step the pins hold the piston: the outside keeps its starting pressure, then
-    // blends to the gas pressure over the last 30% before the pins release.
     const mv = v.moving ? v.vdir : 0
-    // The speed profile itself is used unsmoothed, so the imbalance is exactly zero when the
-    // piston stops at a boundary; only pausing and resuming fade it, through `motion`.
-    this.motion += ((v.live && v.moving ? 1 : 0) - this.motion) * Math.min(1, dt * 8)
-    const speed = type !== 'isochoric' ? (6 * v.tau * (1 - v.tau)) / 1.5 : 0
-    this.velF = speed * this.motion
-    let Pext: number
-    if (type === 'isochoric' && v.live) {
-      const r = easeS(Math.max(0, Math.min(1, (v.tau - 0.7) / 0.3)))
-      Pext = v.Pstart + (st.P - v.Pstart) * r
-    } else Pext = st.P * (1 - 0.5 * v.vdir * this.velF)
 
-    // Manometer: each arm's mercury level follows its own side's pressure (higher pressure, lower
-    // level), so the gas arm moves exactly as continuously as the gas pressure does. Only the
-    // outside arm may move quickly, and it is eased so it never teleports. Δh = P − P_ext.
+    // Open-tube manometer. Every process is quasi-static, so the outside pushes on the piston with
+    // exactly the gas pressure at every instant (constant in an isobaric step; in an isochoric step
+    // the pins carry the difference). The U-tube therefore shows only P − P_atm: mercury is
+    // conserved, so the arms move equally and oppositely and both follow the gas pressure.
     {
       const M = this.MANO
-      const level = (p: number) => Math.max(0.08, Math.min(1.9, 1.85 - (1.7 * p) / PMAX))
-      const hl = level(st.P)
-      this.hOut += (level(v.live ? Pext : st.P) - this.hOut) * Math.min(1, dt * 10)
-      if (!this.manoReady) {
-        this.hOut = hl
-        this.manoReady = true
-      }
-      const hr = this.hOut
+      const { gas: hl, open: hr } = manometerLevels(st.P)
       this.colL.scale.y = hl
       this.colL.position.y = M.MYB + hl / 2
       this.colR.scale.y = hr
       this.colR.position.y = M.MYB + hr / 2
       const yl = M.MYB + hl
       const yr = M.MYB + hr
-      const xm = M.MX2 + 0.2
       this.dhLine.visible = Math.abs(hr - hl) > 0.05
-      this.dhLine.position.set(xm, Math.min(yl, yr), M.MZ)
+      this.dhLine.position.set(M.MX2 + 0.2, Math.min(yl, yr), M.MZ)
       this.dhLine.scale.y = Math.abs(yr - yl) || 0.001
     }
 
