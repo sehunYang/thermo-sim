@@ -33,8 +33,6 @@
   const lawScale = $derived(
     law ? Math.max(1e-9, Math.abs(law.e.Q), Math.abs(law.e.dU), Math.abs(law.e.W)) : 1,
   )
-  // A negative term is written in brackets: "+ (−421.7 J)", never "+ −421.7 J".
-  const term = (v: number) => (fmtE(v).startsWith('−') ? `(${fmtE(v)} J)` : `${fmtE(v)} J`)
   const bar = (v: number) => {
     const w = Math.min(50, (Math.abs(v) / lawScale) * 50)
     return { left: v >= 0 ? 50 : 50 - w, w }
@@ -86,8 +84,10 @@
             <thead>
               <tr>
                 <th>구간</th><th>과정</th><th class="st">상태 V (L) · P (kPa) · T (K)</th><th
-                  >W (J)</th
-                ><th>Q (J)</th><th>ΔU (J)</th>
+                  class="e">Q (J)</th
+                ><th class="op"></th><th class="e">W (J)</th><th class="op"></th><th class="e"
+                  >ΔU (J)</th
+                >
               </tr>
             </thead>
             <tbody>
@@ -103,14 +103,19 @@
                   <td class="num st"
                     >{f1(r.a.V)}→{f1(r.b.V)} · {f0(r.a.P)}→{f0(r.b.P)} · {f0(r.a.T)}→{f0(r.b.T)}</td
                   >
-                  <td class="num"
-                    >{fmtE(e.W)}<small class="say">{say(e.W, '기체가 함', '기체가 받음')}</small
+                  <td class="num e"
+                    ><span class="ebox">{fmtE(e.Q)}</span><small class="say"
+                      >{say(e.Q, '받음', '잃음')}</small
                     ></td
                   >
-                  <td class="num"
-                    >{fmtE(e.Q)}<small class="say">{say(e.Q, '받음', '잃음')}</small></td
+                  <td class="op" aria-hidden="true">=</td>
+                  <td class="num e"
+                    ><span class="ebox">{fmtE(e.W)}</span><small class="say"
+                      >{say(e.W, '기체가 함', '기체가 받음')}</small
+                    ></td
                   >
-                  <td class="num">{fmtE(e.dU)}</td>
+                  <td class="op" aria-hidden="true">+</td>
+                  <td class="num e"><span class="ebox">{fmtE(e.dU)}</span></td>
                 </tr>
               {/each}
             </tbody>
@@ -119,7 +124,7 @@
       {/if}
     {:else if sim.tab === 'law'}
       {#if !law}
-        <div class="empty">구간을 그리면 과정마다 Q = ΔU + W가 맞아떨어지는 모습을 보여줘요.</div>
+        <div class="empty">구간을 그리면 과정마다 Q = W + ΔU가 맞아떨어지는 모습을 보여줘요.</div>
       {:else}
         {@const e = law.e}
         <div class="law">
@@ -128,13 +133,16 @@
               {LETTERS[law.i]}→{toLabel(law.i)}
               {PROC[law.r.segment.type].full} · {law.whole ? '구간 전체' : '지금까지'}
             </div>
-            <div class="law-eq num">{fmtE(e.Q)} J = {term(e.dU)} + {term(e.W)}</div>
+            <div class="law-eq num">
+              <span class="ebox">{fmtE(e.Q)}</span> = <span class="ebox">{fmtE(e.W)}</span> +
+              <span class="ebox">{fmtE(e.dU)}</span> J
+            </div>
             <p class="hint-muted">
-              열 Q는 내부 에너지 변화 ΔU와 기체가 한 일 W로 나뉘어요. 재생하면 막대가 함께 자라요.
+              열 Q는 기체가 한 일 W와 내부 에너지 변화 ΔU로 나뉘어요. 재생하면 막대가 함께 자라요.
             </p>
           </div>
           <div class="bars">
-            {#each [['Q', e.Q, 'heat'], ['ΔU', e.dU, 'du'], ['W', e.W, 'w']] as [k, v, cls] (k)}
+            {#each [['Q', e.Q, 'heat'], ['W', e.W, 'w'], ['ΔU', e.dU, 'du']] as [k, v, cls] (k)}
               {@const b = bar(v as number)}
               <div class="barrow">
                 <span class="k num">{k}</span>
