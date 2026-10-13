@@ -1079,14 +1079,18 @@ td.op {
     padding: 8px 10px;
     font-size: 12px;
   }
+  /* The speed chart sits right under the scene it describes; the steps follow it. */
   .below {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
     height: auto;
   }
   .hist {
+    order: -1;
     border-left: 0;
-    border-top: 1px solid var(--line-soft);
+    border-bottom: 1px solid var(--line-soft);
     height: 104px;
+    flex: none;
   }
   /* Sticky only once there is something to play: it follows the reader down past the graph to
      the scene and the table, so pause is always at hand. */
