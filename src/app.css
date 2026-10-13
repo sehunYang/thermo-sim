@@ -718,8 +718,39 @@ td.st {
   font-family: var(--mono);
   font-size: 14px;
 }
+/* Q = W + ΔU: each value sits in its own thin box, so a negative reads as a negative term
+   ("+ [−120.0]") with no brackets needed. */
+.ebox {
+  display: inline-block;
+  min-width: 6.5ch;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  text-align: right;
+}
+td.op,
+td.num {
+  vertical-align: baseline;
+}
+/* The state column takes the slack, so each box stays next to its = and +. */
+th.st {
+  width: 100%;
+}
+th.e,
+td.e {
+  text-align: center;
+}
+th.op,
+td.op {
+  width: 1ch;
+  padding-left: 0;
+  padding-right: 0;
+  text-align: center;
+  color: var(--muted);
+}
+/* The sign word sits under its box, so the boxes and their = and + stay side by side. */
 .say {
-  margin-left: 6px;
+  display: block;
   font-family: var(--sans);
   font-size: 12px;
   color: var(--muted);
@@ -1079,11 +1110,6 @@ td.st {
   th.st,
   td.st {
     display: none;
-  }
-  /* The sign word goes under its number so all five columns fit. */
-  .say {
-    display: block;
-    margin-left: 0;
   }
   .tools .sep {
     display: none;
