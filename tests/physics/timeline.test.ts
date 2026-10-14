@@ -116,8 +116,8 @@ describe('segment durations', () => {
     expect(d[i] / d[j]).toBeCloseTo(Math.abs(segs[i].energy.Q / segs[j].energy.Q), 9)
   })
 
-  it('every cycle preset keeps the average and the floor', () => {
-    for (const name of PRESET_NAMES) {
+  it('every preset with heat keeps the average and the floor', () => {
+    for (const name of PRESET_NAMES.filter((n) => n !== 'adiabatic')) {
       const segs = resolve(buildPreset(name))
       const d = segmentDurations(segs)
       expect(sum(d)).toBeCloseTo(segs.length * SEGMENT_SECONDS, 6)
@@ -129,9 +129,9 @@ describe('segment durations', () => {
     }
   })
 
-  it('a path without heat keeps equal shares', () => {
+  it('a path without heat plays each segment at the adiabatic length', () => {
     const segs = resolve(buildPreset('adiabatic'))
-    expect(segmentDurations(segs)).toEqual(segs.map(() => SEGMENT_SECONDS))
+    expect(segmentDurations(segs)).toEqual(segs.map(() => ADIABATIC_SECONDS))
   })
 
   it('advance spends each segment its own time', () => {

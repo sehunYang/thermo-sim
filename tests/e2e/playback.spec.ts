@@ -26,10 +26,10 @@ test('a paused or scrubbed playhead still says which way heat goes', async ({ pa
   await page.getByLabel('예시 경로').selectOption('carnot')
   const chip = page.locator('.why-heat')
   // Carnot: A→B isothermal absorbs, B→C adiabatic, C→D isothermal rejects, D→A adiabatic.
-  // Playing time follows |Q|: the segments end at 56.25 %, 61.25 %, 95 % and 100 %.
-  const ends = [0.5625, 0.6125, 0.95, 1]
+  // Playing time follows |Q|: the segments end at 39.06 %, 57.81 %, 81.25 % and 100 %.
+  const ends = [0.390625, 0.578125, 0.8125, 1]
   const expected = ['열 받음', '열 출입 없음', '열 잃음', '열 출입 없음']
-  for (const f of [0.03, 0.2, 0.4, 0.55, 0.57, 0.6, 0.62, 0.8, 0.94, 0.96, 0.99]) {
+  for (const f of [0.03, 0.2, 0.38, 0.4, 0.57, 0.59, 0.7, 0.8, 0.82, 0.9, 0.99]) {
     await page.getByLabel('재생 위치').fill(String(Math.round(f * 1000)))
     await expect(chip).toContainText(expected[ends.findIndex((e) => f < e)])
   }
@@ -65,7 +65,7 @@ test('the first-law bars grow as the playhead moves through a segment', async ({
   await page.getByLabel('재생 위치').fill('40')
   await expect(page.locator('.law-title')).toContainText('지금까지')
   const early = await width()
-  await page.getByLabel('재생 위치').fill('200')
+  await page.getByLabel('재생 위치').fill('150')
   const late = await width()
   expect(early).toBeGreaterThan(0)
   expect(late).toBeGreaterThan(early)
@@ -82,8 +82,8 @@ test('a closed cycle shows the heat taken in and given out so far against the to
   const bars = page.locator('.heatbars .hb-val')
   await expect(bars).toHaveCount(2)
   await expect(bars.first()).toHaveText(/^0\s*\/ \d+ J$/)
-  // At 60 % the isothermal expansion (all the heat in) is done, nothing given out yet.
-  await page.getByLabel('재생 위치').fill('600')
+  // At 50 % the isothermal expansion (all the heat in) is done, nothing given out yet.
+  await page.getByLabel('재생 위치').fill('500')
   const [inNow, inTotal] = (await bars.first().innerText()).match(/\d+/g)!
   expect(inNow).toBe(inTotal)
   await expect(bars.nth(1)).toHaveText(/^0\s*\/ \d+ J$/)
