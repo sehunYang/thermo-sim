@@ -11,13 +11,13 @@ export interface Playhead {
 }
 
 /** Average seconds per segment at 1× speed: a path of n segments plays in n × this. */
-export const SEGMENT_SECONDS = 3
+export const SEGMENT_SECONDS = 2
 
 /**
  * An adiabatic segment exchanges no heat, so nothing holds it back: in a real engine it is over
  * in milliseconds, thousands of times faster than heat can cross a wall. Shown at this length.
  */
-export const ADIABATIC_SECONDS = 0.6
+export const ADIABATIC_SECONDS = 1.5
 
 /** Shortest time for a segment that exchanges heat, so a small step can still be watched. */
 export const MIN_HEAT_SECONDS = 1
@@ -26,13 +26,13 @@ export const MIN_HEAT_SECONDS = 1
  * Seconds each segment takes at 1× speed. Heat crosses the wall at Q̇ = K·ΔT with a small,
  * fixed temperature gap ΔT, so a segment that exchanges heat takes t = |Q|/(K·ΔT), proportional
  * to |Q|. Adiabatic segments take ADIABATIC_SECONDS. K·ΔT is chosen so the whole path keeps
- * SEGMENT_SECONDS per segment on average. A path with no heat at all keeps equal shares.
+ * SEGMENT_SECONDS per segment on average.
  */
 export function segmentDurations(segs: { segment: { type: string }; energy: { Q: number } }[]) {
   const n = segs.length
   const heat = segs.map((r) => r.segment.type !== 'adiabatic')
   const nHeat = heat.filter(Boolean).length
-  if (nHeat === 0) return segs.map(() => SEGMENT_SECONDS)
+  if (nHeat === 0) return segs.map(() => ADIABATIC_SECONDS)
   const budget = n * SEGMENT_SECONDS - (n - nHeat) * ADIABATIC_SECONDS
   // Proportional to |Q|. A segment whose share would fall under MIN_HEAT_SECONDS gets the floor
   // and the others share what is left, until no share falls under it.
