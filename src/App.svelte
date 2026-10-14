@@ -67,9 +67,28 @@
     }
   })
 
+  // Full screen uses the browser's own when it has one, so the address bar and taskbar go too.
+  // Phones without it (iPhone Safari) still get the same layout filling the window.
+  function enterFull() {
+    sim.full = true
+    app.requestFullscreen?.().catch(() => {})
+  }
+  function exitFull() {
+    sim.full = false
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
+  }
+  // Esc in the browser's full screen leaves it without a key event reaching the page.
+  function onFullChange() {
+    if (!document.fullscreenElement) sim.full = false
+  }
+
   function onKey(e: KeyboardEvent) {
     const target = e.target as HTMLElement
     if (target.matches('input,select,textarea') || sim.coach || sim.help) return
+    if (e.key === 'Escape' && sim.full) {
+      exitFull()
+      return
+    }
     const mod = e.ctrlKey || e.metaKey
     if (!mod && keyTools[e.key]) sim.tool = keyTools[e.key]
     // A focused button already reacts to Space itself.
@@ -92,9 +111,10 @@
 </script>
 
 <svelte:window onkeydown={onKey} />
+<svelte:document onfullscreenchange={onFullChange} />
 
 <!-- Before A exists there is one thing to do; everything but the graph steps back. -->
-<div class="app" class:blank={!sim.start} bind:this={app}>
+<div class="app" class:blank={!sim.start} class:full={sim.full} bind:this={app}>
   <AppBar />
   <div class="stage">
     <section class="graph-pane" aria-label="그래프">
@@ -103,7 +123,7 @@
     </section>
     <EngineView />
   </div>
-  <Playbar />
+  <Playbar onfull={() => (sim.full ? exitFull() : enterFull())} />
   <Panel />
   <Toast />
   <Coach />

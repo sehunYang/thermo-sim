@@ -51,6 +51,8 @@ export class Simulation {
   coach = $state(0)
   /** Help dialog: closed, or the open tab. */
   help = $state<'' | 'start' | 'terms'>('')
+  /** Full screen: only the graph, the scene and the playbar, filling the screen. */
+  full = $state(false)
 
   #hist = $state<Snapshot[]>([])
   #fut = $state<Snapshot[]>([])
