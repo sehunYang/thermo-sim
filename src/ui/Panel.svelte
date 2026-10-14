@@ -29,10 +29,12 @@
     const s = whole ? 1 : sim.play.s
     return { i, r, whole, e: energy(sim.gas, r.segment.type, r.a, stateAt(sim.gas, r, s)) }
   })
-  // Scaled to the values shown, so the bars are readable from the first moment of playback.
-  const lawScale = $derived(
-    law ? Math.max(1e-9, Math.abs(law.e.Q), Math.abs(law.e.dU), Math.abs(law.e.W)) : 1,
-  )
+  // Scaled to the whole segment, so during playback the bars grow from zero to their full length.
+  const lawScale = $derived.by(() => {
+    if (!law) return 1
+    const e = law.r.energy
+    return Math.max(1e-9, Math.abs(e.Q), Math.abs(e.dU), Math.abs(e.W))
+  })
   const bar = (v: number) => {
     const w = Math.min(50, (Math.abs(v) / lawScale) * 50)
     return { left: v >= 0 ? 50 : 50 - w, w }

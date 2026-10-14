@@ -53,3 +53,19 @@ test('the state line under the scene matches the table at segment ends', async (
     await expect(line).toContainText(`T ${T} K`)
   }
 })
+
+test('the first-law bars grow as the playhead moves through a segment', async ({ page }) => {
+  await page.goto('./')
+  await page.getByLabel('예시 경로').selectOption('carnot')
+  await page.getByRole('tab', { name: '제1법칙' }).click()
+  const q = page.locator('.bartrack i.heat')
+  const width = async () => parseFloat((await q.getAttribute('style'))!.split('width:')[1])
+  await page.getByLabel('재생 위치').fill('40')
+  await expect(page.locator('.law-title')).toContainText('지금까지')
+  const early = await width()
+  await page.getByLabel('재생 위치').fill('200')
+  const late = await width()
+  expect(early).toBeGreaterThan(0)
+  expect(late).toBeGreaterThan(early)
+  expect(late).toBeLessThan(50)
+})
