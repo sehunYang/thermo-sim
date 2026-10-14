@@ -2,6 +2,8 @@
   import { LETTERS } from '../i18n/ko'
   import { sim } from '../store/simulation.svelte'
 
+  let { onfull }: { onfull: () => void } = $props()
+
   const SPEEDS = [0.25, 0.5, 1, 2, 4]
   const n = $derived(sim.resolved.length)
   const P = $derived(sim.play)
@@ -81,4 +83,24 @@
     onclick={() => (sim.play.speed = SPEEDS[(SPEEDS.indexOf(P.speed) + 1) % SPEEDS.length] ?? 1)}
     ><span class="num">{P.speed}×</span></button
   >
+  <button
+    class="btn icon"
+    title={sim.full ? '전체 화면 끝내기 (Esc)' : '전체 화면: 그래프와 3D만 크게'}
+    aria-label={sim.full ? '전체 화면 끝내기' : '전체 화면'}
+    aria-pressed={sim.full}
+    onclick={onfull}
+  >
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"
+      ><path
+        d={sim.full
+          ? 'M6 2.5V6H2.5M10 2.5V6h3.5M6 13.5V10H2.5M10 13.5V10h3.5'
+          : 'M2.5 6V2.5H6M13.5 6V2.5H10M2.5 10v3.5H6M13.5 10v3.5H10'}
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      /></svg
+    >
+  </button>
 </div>

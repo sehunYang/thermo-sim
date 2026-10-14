@@ -1339,3 +1339,59 @@ td.op {
   height: 100%;
   background: #ffa060;
 }
+
+/* Full screen: the graph and the scene side by side, the playbar under them, nothing else.
+   Placed last so it overrides every width rule above, including the phone stacking. */
+.app.full {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+.app.full .appbar,
+.app.full .panel,
+.app.full .below {
+  display: none;
+}
+.app.full .stage {
+  display: grid;
+  grid-template-columns: 45fr 55fr;
+  grid-template-rows: minmax(0, 1fr);
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+.app.full .graph-pane {
+  border-right: 1px solid var(--line);
+  border-bottom: 0;
+}
+.app.full .graph,
+.app.full .engine-col .engine-pane {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+.app.full .engine-col {
+  border-bottom: 0;
+}
+.app.full .playbar {
+  position: static;
+  order: 0;
+}
+/* A phone held upright has no room for two columns: graph above, scene below. */
+@media (orientation: portrait) and (max-width: 900px) {
+  .app.full .stage {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .app.full .graph-pane {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+}
+@media (min-width: 1600px) and (min-height: 860px) {
+  .app.full {
+    height: 80vh;
+    height: 80dvh;
+  }
+}
