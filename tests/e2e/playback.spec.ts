@@ -26,10 +26,12 @@ test('a paused or scrubbed playhead still says which way heat goes', async ({ pa
   await page.getByLabel('예시 경로').selectOption('carnot')
   const chip = page.locator('.why-heat')
   // Carnot: A→B isothermal absorbs, B→C adiabatic, C→D isothermal rejects, D→A adiabatic.
+  // Playing time follows |Q|: the segments end at 56.25 %, 61.25 %, 95 % and 100 %.
+  const ends = [0.5625, 0.6125, 0.95, 1]
   const expected = ['열 받음', '열 출입 없음', '열 잃음', '열 출입 없음']
-  for (const f of [0.03, 0.12, 0.2, 0.31, 0.4, 0.49, 0.51, 0.6, 0.74, 0.76, 0.9, 0.99]) {
+  for (const f of [0.03, 0.2, 0.4, 0.55, 0.57, 0.6, 0.62, 0.8, 0.94, 0.96, 0.99]) {
     await page.getByLabel('재생 위치').fill(String(Math.round(f * 1000)))
-    await expect(chip).toContainText(expected[Math.floor(f * 4)])
+    await expect(chip).toContainText(expected[ends.findIndex((e) => f < e)])
   }
 })
 
@@ -38,8 +40,8 @@ test('the state line under the scene matches the table at segment ends', async (
   await page.getByLabel('예시 경로').selectOption('carnot')
   const rows = page.locator('tbody tr')
   for (let i = 1; i <= 3; i++) {
-    // The playhead at i/4 sits exactly on the end of segment i.
-    await page.getByLabel('재생 위치').fill(String(i * 250))
+    // Each step puts the playhead at the start of the next segment, the end of segment i.
+    await page.getByRole('button', { name: '다음 구간' }).click()
     // The state cell reads "V₁→V₂ · P₁→P₂ · T₁→T₂"; take each end value.
     const cell = await rows
       .nth(i - 1)
@@ -80,8 +82,8 @@ test('a closed cycle shows the heat taken in and given out so far against the to
   const bars = page.locator('.heatbars .hb-val')
   await expect(bars).toHaveCount(2)
   await expect(bars.first()).toHaveText(/^0\s*\/ \d+ J$/)
-  // Halfway: the isothermal expansion (all the heat in) is done, nothing given out yet.
-  await page.getByLabel('재생 위치').fill('500')
+  // At 60 % the isothermal expansion (all the heat in) is done, nothing given out yet.
+  await page.getByLabel('재생 위치').fill('600')
   const [inNow, inTotal] = (await bars.first().innerText()).match(/\d+/g)!
   expect(inNow).toBe(inTotal)
   await expect(bars.nth(1)).toHaveText(/^0\s*\/ \d+ J$/)

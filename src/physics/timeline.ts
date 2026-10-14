@@ -10,8 +10,51 @@ export interface Playhead {
   loop: boolean
 }
 
-/** Default seconds per segment at 1× speed. */
+/** Average seconds per segment at 1× speed: a path of n segments plays in n × this. */
 export const SEGMENT_SECONDS = 3
+
+/**
+ * An adiabatic segment exchanges no heat, so nothing holds it back: in a real engine it is over
+ * in milliseconds, thousands of times faster than heat can cross a wall. Shown at this length.
+ */
+export const ADIABATIC_SECONDS = 0.6
+
+/** Shortest time for a segment that exchanges heat, so a small step can still be watched. */
+export const MIN_HEAT_SECONDS = 1
+
+/**
+ * Seconds each segment takes at 1× speed. Heat crosses the wall at Q̇ = K·ΔT with a small,
+ * fixed temperature gap ΔT, so a segment that exchanges heat takes t = |Q|/(K·ΔT), proportional
+ * to |Q|. Adiabatic segments take ADIABATIC_SECONDS. K·ΔT is chosen so the whole path keeps
+ * SEGMENT_SECONDS per segment on average. A path with no heat at all keeps equal shares.
+ */
+export function segmentDurations(segs: { segment: { type: string }; energy: { Q: number } }[]) {
+  const n = segs.length
+  const heat = segs.map((r) => r.segment.type !== 'adiabatic')
+  const nHeat = heat.filter(Boolean).length
+  if (nHeat === 0) return segs.map(() => SEGMENT_SECONDS)
+  const budget = n * SEGMENT_SECONDS - (n - nHeat) * ADIABATIC_SECONDS
+  // Proportional to |Q|. A segment whose share would fall under MIN_HEAT_SECONDS gets the floor
+  // and the others share what is left, until no share falls under it.
+  const floored = new Set<number>()
+  for (;;) {
+    const free = segs.flatMap((_, i) => (heat[i] && !floored.has(i) ? [i] : []))
+    const left = budget - floored.size * MIN_HEAT_SECONDS
+    const q = free.reduce((sum, i) => sum + Math.abs(segs[i].energy.Q), 0)
+    const share = (i: number) =>
+      q > 0 ? (left * Math.abs(segs[i].energy.Q)) / q : left / free.length
+    const low = free.filter((i) => share(i) < MIN_HEAT_SECONDS)
+    if (low.length === 0 || low.length === free.length)
+      return segs.map((_, i) =>
+        !heat[i]
+          ? ADIABATIC_SECONDS
+          : floored.has(i)
+            ? MIN_HEAT_SECONDS
+            : Math.max(share(i), MIN_HEAT_SECONDS),
+      )
+    low.forEach((i) => floored.add(i))
+  }
+}
 
 /**
  * Smoothstep timing: the free variable speeds up and slows down within each segment, so the
@@ -59,12 +102,20 @@ export function instantAt(gas: GasConfig, r: ResolvedSegment, s: number): Instan
  * Advance the playhead by dt seconds. Time within a segment is τ; s follows easeS(τ).
  * Returns a new playhead; playback stops at the end unless loop is on.
  */
-export function advance(p: Playhead, dt: number, segmentCount: number): Playhead {
+export function advance(p: Playhead, dt: number, durations: number[]): Playhead {
+  const segmentCount = durations.length
   if (!p.playing || segmentCount === 0) return p
   let seg = p.segmentIndex
-  let tau = invEase(p.s) + (dt * p.speed) / SEGMENT_SECONDS
-  while (tau >= 1) {
-    tau -= 1
+  let left = dt * p.speed
+  let tau = invEase(p.s)
+  for (;;) {
+    const rest = (1 - tau) * durations[seg]
+    if (left < rest) {
+      tau += left / durations[seg]
+      break
+    }
+    left -= rest
+    tau = 0
     seg += 1
     if (seg >= segmentCount) {
       if (!p.loop) return { ...p, segmentIndex: segmentCount - 1, s: 1, playing: false }

@@ -2,15 +2,18 @@ import { describe, expect, it } from 'vitest'
 import { MONATOMIC } from '../../src/physics/gas'
 import { analyzeCycle, resolve } from '../../src/physics/path'
 import {
+  ADIABATIC_SECONDS,
+  MIN_HEAT_SECONDS,
   SEGMENT_SECONDS,
   advance,
+  segmentDurations,
   heatSoFar,
   easeS,
   instantAt,
   invEase,
   type Playhead,
 } from '../../src/physics/timeline'
-import { buildPreset } from '../../src/presets/cycles'
+import { PRESET_NAMES, buildPreset } from '../../src/presets/cycles'
 
 const play = (over: Partial<Playhead> = {}): Playhead => ({
   segmentIndex: 0,
@@ -21,6 +24,8 @@ const play = (over: Partial<Playhead> = {}): Playhead => ({
   ...over,
 })
 
+const EQUAL = [SEGMENT_SECONDS, SEGMENT_SECONDS]
+
 describe('smoothstep timing', () => {
   it('invEase inverts easeS', () => {
     for (let t = 0; t <= 1; t += 0.05) expect(invEase(easeS(t))).toBeCloseTo(t, 6)
@@ -28,18 +33,18 @@ describe('smoothstep timing', () => {
 
   it('advance moves through segments and stops at the end without loop', () => {
     let p = play()
-    p = advance(p, SEGMENT_SECONDS / 2, 2)
+    p = advance(p, SEGMENT_SECONDS / 2, EQUAL)
     expect(p.segmentIndex).toBe(0)
     expect(p.s).toBeCloseTo(0.5, 9)
-    p = advance(p, SEGMENT_SECONDS, 2)
+    p = advance(p, SEGMENT_SECONDS, EQUAL)
     expect(p.segmentIndex).toBe(1)
     expect(p.s).toBeCloseTo(0.5, 9)
-    p = advance(p, SEGMENT_SECONDS, 2)
+    p = advance(p, SEGMENT_SECONDS, EQUAL)
     expect(p).toMatchObject({ segmentIndex: 1, s: 1, playing: false })
   })
 
   it('advance wraps with loop on', () => {
-    const p = advance(play({ loop: true, segmentIndex: 1, s: 0.5 }), SEGMENT_SECONDS, 2)
+    const p = advance(play({ loop: true, segmentIndex: 1, s: 0.5 }), SEGMENT_SECONDS, EQUAL)
     expect(p.segmentIndex).toBe(0)
     expect(p.s).toBeCloseTo(0.5, 9)
     expect(p.playing).toBe(true)
@@ -93,5 +98,45 @@ describe('heatSoFar', () => {
         expect(h.qout).toBeGreaterThanOrEqual(prev.qout - 1e-9)
         prev = h
       }
+  })
+})
+
+describe('segment durations', () => {
+  const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0)
+
+  it('heat segments take time in proportion to |Q|, adiabatic ones are short', () => {
+    const segs = resolve(buildPreset('carnot'))
+    const d = segmentDurations(segs)
+    expect(sum(d)).toBeCloseTo(segs.length * SEGMENT_SECONDS, 9)
+    const heat = segs.flatMap((r, i) => (r.segment.type === 'adiabatic' ? [] : [i]))
+    const adia = segs.flatMap((r, i) => (r.segment.type === 'adiabatic' ? [i] : []))
+    expect(adia.length).toBe(2)
+    for (const i of adia) expect(d[i]).toBe(ADIABATIC_SECONDS)
+    const [i, j] = heat
+    expect(d[i] / d[j]).toBeCloseTo(Math.abs(segs[i].energy.Q / segs[j].energy.Q), 9)
+  })
+
+  it('every cycle preset keeps the average and the floor', () => {
+    for (const name of PRESET_NAMES) {
+      const segs = resolve(buildPreset(name))
+      const d = segmentDurations(segs)
+      expect(sum(d)).toBeCloseTo(segs.length * SEGMENT_SECONDS, 6)
+      segs.forEach((r, i) =>
+        expect(d[i]).toBeGreaterThanOrEqual(
+          r.segment.type === 'adiabatic' ? ADIABATIC_SECONDS : MIN_HEAT_SECONDS,
+        ),
+      )
+    }
+  })
+
+  it('a path without heat keeps equal shares', () => {
+    const segs = resolve(buildPreset('adiabatic'))
+    expect(segmentDurations(segs)).toEqual(segs.map(() => SEGMENT_SECONDS))
+  })
+
+  it('advance spends each segment its own time', () => {
+    const p = advance(play(), 0.5 + 0.25, [0.5, 1])
+    expect(p.segmentIndex).toBe(1)
+    expect(invEase(p.s)).toBeCloseTo(0.25, 6)
   })
 })
