@@ -15,7 +15,7 @@ import {
   type ProcessPath,
   type Segment,
 } from '../physics/path'
-import { SEGMENT_SECONDS, easeS, invEase } from '../physics/timeline'
+import { easeS, invEase, segmentDurations } from '../physics/timeline'
 import { currentView, type PlayState } from '../engine3d/view'
 import { state } from '../physics/processes'
 import { buildPreset, type PresetName } from '../presets/cycles'
@@ -72,6 +72,13 @@ export class Simulation {
   )
   cycle = $derived(this.path ? analyzeCycle(this.path) : null)
   sides = $derived(this.path ? reservoirSides(this.path) : [])
+  /** Seconds each segment plays at 1×: proportional to its heat, short for adiabatic. */
+  durations = $derived(segmentDurations(this.resolved))
+  /** Time at which each segment starts, at 1×. */
+  #starts = $derived(
+    this.durations.map((_, i) => this.durations.slice(0, i).reduce((a, b) => a + b, 0)),
+  )
+  #total = $derived(this.durations.reduce((a, b) => a + b, 0))
   reservoirT = $derived(this.path ? reservoirLabels(this.path) : null)
   fridge = $derived(this.cycle?.kind === 'refrigerator')
 
@@ -95,13 +102,14 @@ export class Simulation {
     }),
   )
 
-  /** Whole-path progress 0..1 (each segment takes an equal share). */
+  /** Whole-path progress 0..1; each segment's share is its playing time. */
   get progress() {
-    const n = this.resolved.length
-    return n ? (this.play.seg + this.play.s) / n : 0
+    const { seg, s } = this.play
+    if (!this.#total || seg >= this.durations.length) return 0
+    return (this.#starts[seg] + s * this.durations[seg]) / this.#total
   }
   get totalSeconds() {
-    return (this.resolved.length * SEGMENT_SECONDS) / this.play.speed
+    return this.#total / this.play.speed
   }
 
   stopPlay() {
@@ -149,9 +157,11 @@ export class Simulation {
   seek(f: number) {
     const n = this.resolved.length
     if (!n) return
-    const x = Math.max(0, Math.min(1, f)) * n
-    const seg = Math.min(n - 1, Math.floor(x))
-    Object.assign(this.play, { seg, s: x - seg, active: true, done: false, playing: false })
+    const t = Math.max(0, Math.min(1, f)) * this.#total
+    let seg = 0
+    while (seg < n - 1 && t >= this.#starts[seg + 1]) seg++
+    const s = Math.min(1, (t - this.#starts[seg]) / this.durations[seg])
+    Object.assign(this.play, { seg, s, active: true, done: false, playing: false })
   }
 
   /** Step the paused playhead by a small slice of time (keyboard ← / →). */
@@ -159,7 +169,8 @@ export class Simulation {
     const n = this.resolved.length
     if (!n) return
     const f = this.play.active ? this.progress : 0
-    this.seek(f + (dir * 0.01) / n)
+    const d = this.play.active ? this.durations[this.play.seg] : this.durations[0]
+    this.seek(f + (dir * 0.01 * d) / this.#total)
   }
 
   /** Advance playback by dt seconds of wall time (smoothstep timing within each segment). */
@@ -167,22 +178,27 @@ export class Simulation {
     const P = this.play
     const n = this.resolved.length
     if (!P.playing || !n) return
-    let tau = invEase(P.s) + (dt * P.speed) / SEGMENT_SECONDS
+    const D = this.durations
+    let left = dt * P.speed
+    let tau = invEase(P.s)
     let seg = P.seg
-    while (tau >= 1) {
+    while (left >= (1 - tau) * D[seg]) {
+      left -= (1 - tau) * D[seg]
       if (seg < n - 1) {
-        tau -= 1
+        tau = 0
         seg++
       } else if (this.closed && P.loop) {
-        tau -= 1
+        tau = 0
         seg = 0
       } else {
         tau = 1
         P.playing = false
         P.done = true
+        left = 0
         break
       }
     }
+    tau = Math.min(1, tau + left / D[seg])
     P.seg = seg
     P.s = easeS(tau)
   }
