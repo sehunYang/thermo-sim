@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { MONATOMIC } from '../../src/physics/gas'
-import { resolve } from '../../src/physics/path'
+import { analyzeCycle, resolve } from '../../src/physics/path'
 import {
   SEGMENT_SECONDS,
   advance,
+  heatSoFar,
   easeS,
   instantAt,
   invEase,
@@ -63,5 +64,34 @@ describe('instantaneous energy', () => {
     let sum = 0
     for (let i = 0; i < N; i++) sum += instantAt(MONATOMIC, r, easeS((i + 0.5) / N)).dQ / N
     expect(sum).toBeCloseTo(r.energy.Q, 0)
+  })
+})
+
+describe('heatSoFar', () => {
+  const path = buildPreset('carnot')
+  const segs = resolve(path)
+  const total = (k: 'qin' | 'qout') => heatSoFar(path.gas, segs, segs.length - 1, 1)[k]
+
+  it('is zero at the start of the cycle', () => {
+    expect(heatSoFar(path.gas, segs, 0, 0)).toEqual({ qin: 0, qout: 0 })
+  })
+
+  it('ends at the cycle analysis totals', () => {
+    const c = analyzeCycle(path)!
+    expect(c.kind).toBe('engine')
+    if (c.kind !== 'engine') return
+    expect(total('qin')).toBeCloseTo(c.Qin, 6)
+    expect(total('qout')).toBeCloseTo(c.Qout, 6)
+  })
+
+  it('never decreases through the cycle', () => {
+    let prev = { qin: 0, qout: 0 }
+    for (let i = 0; i < segs.length; i++)
+      for (let s = 0; s <= 1; s += 0.1) {
+        const h = heatSoFar(path.gas, segs, i, s)
+        expect(h.qin).toBeGreaterThanOrEqual(prev.qin - 1e-9)
+        expect(h.qout).toBeGreaterThanOrEqual(prev.qout - 1e-9)
+        prev = h
+      }
   })
 })

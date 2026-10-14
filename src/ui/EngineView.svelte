@@ -5,6 +5,7 @@
   import { SPEED_MAX, speedColor, speedU } from '../engine3d/speed'
   import { f0, f1 } from '../i18n/ko'
   import { sim } from '../store/simulation.svelte'
+  import HeatBars from './HeatBars.svelte'
   import WhyRow from './WhyRow.svelte'
 
   let host: HTMLElement
@@ -135,6 +136,7 @@
       </div>
     {:else}
       <div class="hud">
+        <HeatBars />
         {#if !v.empty}
           <output class="hud-state" aria-label="지금 기체 상태">{gasLine}</output>
         {/if}

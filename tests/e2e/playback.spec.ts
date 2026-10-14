@@ -69,3 +69,20 @@ test('the first-law bars grow as the playhead moves through a segment', async ({
   expect(late).toBeGreaterThan(early)
   expect(late).toBeLessThan(50)
 })
+
+test('a closed cycle shows the heat taken in and given out so far against the totals', async ({
+  page,
+}) => {
+  await page.goto('./')
+  await page.getByLabel('예시 경로').selectOption('isothermal')
+  await expect(page.locator('.heatbars')).toHaveCount(0)
+  await page.getByLabel('예시 경로').selectOption('carnot')
+  const bars = page.locator('.heatbars .hb-val')
+  await expect(bars).toHaveCount(2)
+  await expect(bars.first()).toHaveText(/^0\s*\/ \d+ J$/)
+  // Halfway: the isothermal expansion (all the heat in) is done, nothing given out yet.
+  await page.getByLabel('재생 위치').fill('500')
+  const [inNow, inTotal] = (await bars.first().innerText()).match(/\d+/g)!
+  expect(inNow).toBe(inTotal)
+  await expect(bars.nth(1)).toHaveText(/^0\s*\/ \d+ J$/)
+})

@@ -73,3 +73,23 @@ export function advance(p: Playhead, dt: number, segmentCount: number): Playhead
   }
   return { ...p, segmentIndex: seg, s: easeS(tau) }
 }
+
+/**
+ * Heat the gas has taken in and given out since the start of the cycle, up to segment seg at
+ * progress s (both ≥ 0). Within one of the four processes Q never changes sign, so a segment's
+ * partial heat goes wholly to one side.
+ */
+export function heatSoFar(
+  gas: GasConfig,
+  segs: ResolvedSegment[],
+  seg: number,
+  s: number,
+): { qin: number; qout: number } {
+  let qin = 0
+  let qout = 0
+  const add = (q: number) => (q > 0 ? (qin += q) : (qout -= q))
+  for (let i = 0; i < Math.min(seg, segs.length); i++) add(segs[i].energy.Q)
+  const r = segs[seg]
+  if (r && s > 0) add(energy(gas, r.segment.type, r.a, stateAt(gas, r, s)).Q)
+  return { qin, qout }
+}
